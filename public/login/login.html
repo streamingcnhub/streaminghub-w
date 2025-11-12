@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>StreamingHub • Logowanie</title>
+  <style>
+    :root {
+      --bg: #0b0d10;
+      --card: #151922;
+      --muted: #9fb1d9;
+      --text: #e3e7ee;
+      --brand: #4f7cff;
+      --border: #232a37;
+    }
+    body {
+      margin:0;
+      background:var(--bg);
+      color:var(--text);
+      font-family:system-ui, sans-serif;
+      min-height:100vh;
+      display:flex;
+      flex-direction:column;
+    }
+    header {
+      position:sticky;
+      top:0;
+      background:rgba(11,13,16,0.85);
+      backdrop-filter:blur(6px);
+      z-index:10;
+      border-bottom:1px solid rgba(255,255,255,0.05);
+    }
+    .nav {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      max-width:1200px;
+      margin:0 auto;
+      padding:12px 16px;
+    }
+    .brand { font-weight:700; color:var(--text); text-decoration:none; display:flex; align-items:center; gap:8px; }
+    .menu { display:flex; align-items:center; gap:18px; }
+    .menu a { color:var(--muted); text-decoration:none; font-size:0.95rem; transition:color .2s; }
+    .menu a:hover { color:#fff; }
+
+    main {
+      flex:1;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:40px 16px;
+    }
+
+    .auth-box {
+      background:var(--card);
+      padding:30px 40px;
+      border-radius:16px;
+      width:100%;
+      max-width:400px;
+      box-shadow:0 0 25px rgba(0,0,0,.4);
+    }
+    h2 { text-align:center; margin-bottom:25px; }
+    label { display:block; font-size:.9rem; color:var(--muted); margin-bottom:6px; }
+    input {
+      width:100%; background:#0e1218; border:1px solid var(--border);
+      color:#fff; padding:10px 12px; border-radius:10px; margin-bottom:14px;
+    }
+    button {
+      width:100%; background:var(--brand); color:#fff; border:none;
+      padding:10px 16px; border-radius:12px; cursor:pointer;
+      font-weight:600; margin-top:4px; transition:background .2s;
+    }
+    button:hover { background:#668cff; }
+    .switch, small.link { text-align:center; margin-top:10px; color:var(--muted); cursor:pointer; font-size:.9rem; display:block; }
+    .switch:hover, small.link:hover { color:#fff; text-decoration:underline; }
+    .captcha {
+      display:flex; align-items:center; justify-content:space-between;
+      background:#0e1218; padding:8px 12px; border:1px solid var(--border);
+      border-radius:10px; margin-bottom:12px; user-select:none;
+    }
+    .captcha span { font-family:monospace; font-size:1rem; letter-spacing:2px; }
+
+    footer {
+      text-align:center;
+      padding:20px 0;
+      color:var(--muted);
+      font-size:0.9rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a class="brand" href="index.html">🎬 StreamingHub</a>
+    <nav class="menu">
+      <a href="filmy.html">Filmy</a>
+      <a href="seriale.html">Seriale</a>
+      <a href="index.html#me">Moja biblioteka</a>
+      <a href="login.html" style="color:#fff;">Logowanie</a>
+      <a href="#" onclick="showRegister()">Rejestracja</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="auth-box" id="authBox">
+    <h2 id="formTitle">Zaloguj się</h2>
+
+    <!-- 🔹 Logowanie -->
+    <div id="loginForm">
+      <label>Email</label>
+      <input type="email" id="loginEmail" placeholder="twój@email.com" />
+      <label>Hasło</label>
+      <input type="password" id="loginPass" placeholder="••••••••" />
+      <button onclick="login()">Zaloguj się</button>
+      <small class="link" onclick="showReset()">Zapomniałeś hasła?</small>
+      <small class="link" onclick="showRegister()">Nie masz konta? Zarejestruj się</small>
+      <small class="link" onclick="sendMagicLink()">Zaloguj się magicznym linkiem ✨</small>
+    </div>
+
+    <!-- 🔹 Rejestracja -->
+    <div id="registerForm" style="display:none;">
+      <label>Nazwa użytkownika</label>
+      <input type="text" id="regName" placeholder="np. Janek123" />
+      <label>Email</label>
+      <input type="email" id="regEmail" placeholder="twój@email.com" />
+      <label>Hasło</label>
+      <input type="password" id="regPass" placeholder="••••••••" />
+      <label>Powtórz hasło</label>
+      <input type="password" id="regPass2" placeholder="••••••••" />
+      <div class="captcha">
+        <span id="captchaText"></span>
+        <input type="text" id="captchaInput" placeholder="Przepisz" style="width:100px;">
+      </div>
+      <button onclick="register()">Utwórz konto</button>
+      <small class="link" onclick="showLogin()">Masz już konto? Zaloguj się</small>
+    </div>
+
+    <!-- 🔹 Reset hasła -->
+    <div id="resetForm" style="display:none;">
+      <label>Podaj email</label>
+      <input type="email" id="resetEmail" placeholder="twój@email.com" />
+      <button onclick="resetPassword()">Wyślij link do resetu</button>
+      <small class="link" onclick="showLogin()">Wróć do logowania</small>
+    </div>
+
+    <!-- 🔹 Nowe hasło -->
+    <div id="newPassForm" style="display:none;">
+      <label>Nowe hasło</label>
+      <input type="password" id="newPass1" placeholder="••••••••" />
+      <label>Powtórz hasło</label>
+      <input type="password" id="newPass2" placeholder="••••••••" />
+      <button onclick="updatePassword()">Zmień hasło</button>
+    </div>
+  </div>
+</main>
+
+<footer>© <script>document.write(new Date().getFullYear())</script> StreamingHub</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = "https://jjmnacolebxsifmnmqks.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpqbW5hY29sZWJ4c2lmbW5tcWtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU3OTcyNDQsImV4cCI6MjA3MTM3MzI0NH0.1hNoBQ4wDuA_t_vscorQ6FRb-aW8IxHEDxuZKEhndv0";
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* ---------- Przełączanie widoków ---------- */
+function showLogin(){ hideAll(); document.getElementById("formTitle").innerText="Zaloguj się"; document.getElementById("loginForm").style.display="block"; }
+function showRegister(){ hideAll(); generateCaptcha(); document.getElementById("formTitle").innerText="Rejestracja"; document.getElementById("registerForm").style.display="block"; }
+function showReset(){ hideAll(); document.getElementById("formTitle").innerText="Reset hasła"; document.getElementById("resetForm").style.display="block"; }
+function hideAll(){ ["loginForm","registerForm","resetForm","newPassForm"].forEach(id=>document.getElementById(id).style.display="none"); }
+
+/* ---------- Captcha ---------- */
+function generateCaptcha(){
+  const code = Math.random().toString(36).substring(2,8).toUpperCase();
+  document.getElementById("captchaText").textContent = code;
+  document.getElementById("captchaText").dataset.value = code;
+}
+
+/* ---------- Rejestracja ---------- */
+async function register(){
+  const name = document.getElementById("regName").value.trim();
+  const email = document.getElementById("regEmail").value.trim();
+  const pass = document.getElementById("regPass").value;
+  const pass2 = document.getElementById("regPass2").value;
+  const captcha = document.getElementById("captchaInput").value.trim().toUpperCase();
+  const correct = document.getElementById("captchaText").dataset.value;
+
+  if(!name || !email || !pass){alert("Uzupełnij wszystkie pola!");return;}
+  if(pass !== pass2){alert("Hasła nie są identyczne!");return;}
+  if(captcha !== correct){alert("Captcha niepoprawna!");generateCaptcha();return;}
+
+  const { data, error } = await db.auth.signUp({
+    email,
+    password: pass,
+    options: {
+      data: { username: name },
+      emailRedirectTo: "https://cannon1123.github.io/streaminghub1/login.html"
+    }
+  });
+  if(error){alert("Błąd: "+error.message);}
+  else { alert("Sprawdź maila i potwierdź rejestrację!"); showLogin(); }
+}
+
+/* ---------- Logowanie ---------- */
+async function login(){
+  const email = document.getElementById("loginEmail").value.trim();
+  const pass = document.getElementById("loginPass").value;
+  if(!email||!pass){alert("Podaj dane logowania!");return;}
+  const { data, error } = await db.auth.signInWithPassword({ email, password: pass });
+  if(error){alert("Błąd: "+error.message);}
+  else { location.href = "seriale.html"; }
+}
+
+/* ---------- Magic Link ---------- */
+async function sendMagicLink(){
+  const email = prompt("Podaj swój email, aby wysłać magiczny link:");
+  if(!email) return;
+  const { error } = await db.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: "https://cannon1123.github.io/streaminghub1/login.html" }
+  });
+  if(error){alert("Błąd: "+error.message);}
+  else alert("Magic link został wysłany! Sprawdź skrzynkę.");
+}
+
+/* ---------- Reset hasła ---------- */
+async function resetPassword(){
+  const email = document.getElementById("resetEmail").value.trim();
+  if(!email){alert("Podaj adres e-mail!");return;}
+  const { error } = await db.auth.resetPasswordForEmail(email, {
+    redirectTo: "https://cannon1123.github.io/streaminghub1/login.html"
+  });
+  if(error){alert("Błąd: "+error.message);}
+  else alert("Wysłano link do resetu hasła. Sprawdź pocztę!");
+}
+
+/* ---------- Zmiana hasła ---------- */
+async function updatePassword(){
+  const p1 = document.getElementById("newPass1").value;
+  const p2 = document.getElementById("newPass2").value;
+  if(p1 !== p2){alert("Hasła nie są identyczne!");return;}
+  const { error } = await db.auth.updateUser({ password: p1 });
+  if(error){alert("Błąd: "+error.message);}
+  else {
+    alert("Hasło zostało zmienione pomyślnie ✅");
+    location.href = "login.html";
+  }
+}
+
+/* ---------- Obsługa linków z maila (signup / magic link / recovery) ---------- */
+(async () => {
+  const hash = window.location.hash;
+
+  if (hash.includes("access_token")) {
+    const urlParams = new URLSearchParams(hash.replace("#", ""));
+    const type = urlParams.get("type");
+
+    try {
+      const { data: { session }, error } = await db.auth.getSession();
+      if (error) throw error;
+
+      // ✅ Potwierdzenie konta
+      if (type === "signup") {
+        document.body.innerHTML = `
+          <main style="display:flex;justify-content:center;align-items:center;min-height:100vh;flex-direction:column;font-family:sans-serif;color:#e3e7ee;background:#0b0d10;">
+            <h2 style="color:#4f7cff;">✅ Konto zostało potwierdzone</h2>
+            <p>Możesz się teraz <a href="login.html" style="color:#4f7cff;text-decoration:underline;">zalogować</a>.</p>
+          </main>
+        `;
+        return;
+      }
+
+      // ✅ Magic Link
+      if (type === "magiclink") {
+        const access_token = urlParams.get("access_token");
+        const refresh_token = urlParams.get("refresh_token");
+
+        const { data, error } = await db.auth.setSession({ access_token, refresh_token });
+        if (error) throw error;
+        alert("✅ Zalogowano pomyślnie magicznym linkiem!");
+        location.href = "seriale.html";
+        return;
+      }
+
+      // ✅ Reset hasła
+      if (type === "recovery") {
+        hideAll();
+        document.getElementById("formTitle").innerText = "Ustaw nowe hasło";
+        document.getElementById("newPassForm").style.display = "block";
+        return;
+      }
+
+    } catch (err) {
+      console.error(err);
+      alert("❌ Wystąpił błąd przy potwierdzaniu linku.");
+      location.href = "login.html";
+    }
+  }
+})();
+
+generateCaptcha();
+</script>
+</body>
+</html>

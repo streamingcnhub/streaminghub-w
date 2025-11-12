@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wspólne oglądanie • StreamingHub</title>
+  <style>
+    :root {
+      --bg: #0b0d10;
+      --card: #151922;
+      --text: #e3e7ee;
+      --muted: #a8bfe2;
+      --brand: #4f7cff;
+      --border: #232a37;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto;
+      min-height: 100vh;
+    }
+    .container { max-width: 1100px; margin: 0 auto; padding: 16px; }
+    header {
+      position: sticky;
+      top: 0;
+      background: rgba(11, 13, 16, .8);
+      backdrop-filter: blur(6px);
+      z-index: 10;
+    }
+    .nav { display: flex; gap: 12px; align-items: center; padding: 12px 16px; }
+    .brand { font-weight: 800; }
+    .menu a, .menu button { padding: 8px 10px; color: var(--muted); background: none; border: none; cursor: pointer; }
+    .btn { background: var(--brand); color: #fff; padding: 8px 12px; border-radius: 10px; border: none; cursor: pointer; }
+    .btn.secondary { background: #2a3446; }
+    .btn.danger { background: #c24b4b; }
+    .small-btn { padding: 6px 10px; border-radius: 8px; background: #2a3446; color: #fff; border: none; cursor: pointer; }
+    .card { background: var(--card); border: 1px solid var(--border); padding: 16px; border-radius: 12px; margin-top: 16px; }
+    .muted { color: var(--muted); font-size: 13px; }
+    .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    input, select, textarea { width:100%; padding:8px; margin-top:4px; border-radius:8px; border:1px solid var(--border); background:#0e1218; color:var(--text); }
+    .room-card { background:#0e1218; border:1px solid var(--border); padding:12px; border-radius:10px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;}
+    .muted-block { color: var(--muted); margin-top: 6px; font-size: 13px; }
+    .video-area { margin-top:12px; }
+    .controls { display:flex; gap:8px; margin-top:8px; }
+    footer { color: var(--muted); text-align: center; padding: 30px 0; }
+    .invite-list { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<header>
+  <div class="nav container">
+    <a class="brand" href="filmy.html">🎬 StreamingHub</a>
+    <nav class="menu" style="margin-left:auto">
+      <a href="filmy.html">Filmy</a>
+      <a href="seriale.html">Seriale</a>
+      <a href="top.html">TOP</a>
+      <a href="moja-biblioteka.html">Moja biblioteka</a>
+      <a href="znajomi.html">Znajomi</a>
+      <a href="watch-together.html" style="color:#fff">Wspólne oglądanie</a>
+      <button onclick="logout()" class="btn secondary">Wyloguj</button>
+    </nav>
+  </div>
+</header>
+
+<main class="container">
+  <h1>👥 Wspólne oglądanie</h1>
+
+  <!-- Tworzenie pokoju -->
+  <section class="card">
+    <h2>➕ Utwórz pokój</h2>
+    <p class="muted">Możesz tworzyć pokój tylko dla filmów, które <b>TY</b> masz odblokowane.</p>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:240px">
+        <label>Wybierz film (odblokowane)</label>
+        <select id="myUnlockedSelect"></select>
+      </div>
+      <div style="min-width:220px">
+        <label>Nazwa pokoju (opcjonalnie)</label>
+        <input id="roomNameInput" placeholder="Nazwa pokoju">
+      </div>
+      <div style="min-width:160px;align-self:end">
+        <button class="btn" onclick="createRoom()">Utwórz pokój</button>
+      </div>
+    </div>
+    <p id="createMsg" class="muted-block"></p>
+  </section>
+
+  <!-- Szybkie dołączanie -->
+  <section class="card">
+    <h2>🔗 Dołącz po kodzie pokoju</h2>
+    <div class="row">
+      <input id="joinRoomId" placeholder="Wpisz ID pokoju (UUID)">
+      <button class="btn" onclick="joinRoomById()">Dołącz</button>
+    </div>
+    <p id="joinMsg" class="muted-block"></p>
+  </section>
+
+  <!-- Lista moich pokoi -->
+  <section class="card">
+    <h2>🏠 Twoje pokoje</h2>
+    <div id="myRoomsList">Ładowanie…</div>
+  </section>
+
+  <!-- Lista pokoi do których należysz -->
+  <section class="card">
+    <h2>🔎 Pokoje (do których należysz)</h2>
+    <div id="joinedRoomsList">Ładowanie…</div>
+  </section>
+
+  <!-- Widok pokoju (player + zaproszenia) -->
+  <section class="card" id="roomView" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <h2 id="roomTitle">Pokój</h2>
+        <div class="muted-block" id="roomMeta"></div>
+      </div>
+      <div>
+        <button class="btn danger" onclick="leaveRoom()">Opuść pokój</button>
+      </div>
+    </div>
+
+    <div class="video-area" id="videoArea">
+      <!-- tu wstawiamy iframe filmu -->
+      <div id="playerWrapper">Ładowanie odtwarzacza…</div>
+      <div class="controls">
+        <button class="small-btn" onclick="broadcastAction('play')">▶️ Play</button>
+        <button class="small-btn" onclick="broadcastAction('pause')">⏸ Pause</button>
+        <input id="seekInput" placeholder="Czas (s)" style="width:80px">
+        <button class="small-btn" onclick="broadcastSeek()">⤴️ Seek</button>
+        <div style="margin-left:8px" class="muted">Wydarzenia są synchronizowane do wszystkich uczestników.</div>
+      </div>
+    </div>
+
+    <hr style="margin:12px 0;border-color:var(--border)">
+
+    <div>
+      <h3>👥 Zaproś znajomych</h3>
+      <div id="friendsForInvite" class="invite-list">Ładowanie…</div>
+      <p class="muted-block">Kliknij znajomego, aby dodać go do pokoju (otrzyma dostęp automatycznie).</p>
+    </div>
+
+    <div style="margin-top:12px">
+      <h3>Uczestnicy</h3>
+      <div id="roomMembersList">Ładowanie…</div>
+    </div>
+  </section>
+</main>
+
+<footer>© <script>document.write(new Date().getFullYear())</script> StreamingHub</footer>
+
+<script>
+const db = supabase.createClient(
+  "https://jjmnacolebxsifmnmqks.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpqbW5hY29sZWJ4c2lmbW5tcWtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU3OTcyNDQsImV4cCI6MjA3MTM3MzI0NH0.1hNoBQ4wDuA_t_vscorQ6FRb-aW8IxHEDxuZKEhndv0"
+);
+let currentUser = null;
+let currentRoom = null; // { id, movie_id, host_id, name }
+let roomChannel = null;
+
+(async ()=>{
+  const { data:{ session } } = await db.auth.getSession();
+  if(!session) return location.href="login.html";
+  currentUser = session.user;
+  await loadMyUnlockedMovies();
+  await loadMyRooms();
+  await loadJoinedRooms();
+})();
+
+/* ------------------ 1) LISTA ODBLOKOWANYCH FILMÓW (TYLKO DLA HOSTA) ------------------ */
+async function loadMyUnlockedMovies(){
+  const sel = document.getElementById("myUnlockedSelect");
+  sel.innerHTML = "<option>Ładowanie…</option>";
+
+  // pobierz wpisy w tabeli unlocks dla currentUser
+  const { data: unlocks } = await db.from("unlocks").select("movie_id").eq("user_id", currentUser.id);
+  const movieIds = (unlocks||[]).map(u=>u.movie_id);
+  if(!movieIds.length){
+    sel.innerHTML = "<option>Brak odblokowanych filmów — odblokuj film, aby utworzyć pokój.</option>";
+    return;
+  }
+
+  const { data: movies } = await db.from("movies").select("id,title,thumb,iframe").in("id", movieIds);
+  sel.innerHTML = movies.map(m=>`<option value="${m.id}" data-iframe="${encodeURIComponent(m.iframe||'')}">${escapeHtml(m.title)}</option>`).join("");
+}
+
+/* ------------------ 2) TWORZENIE POKOJU ------------------ */
+async function createRoom(){
+  const select = document.getElementById("myUnlockedSelect");
+  const movieId = select.value;
+  const name = document.getElementById("roomNameInput").value.trim();
+  const msg = document.getElementById("createMsg");
+  msg.textContent = "";
+
+  if(!movieId) return msg.textContent = "Wybierz film odblokowany przez Ciebie.";
+  // dodatkowa weryfikacja: upewnij się, że host ma unlock
+  const { data: unlocked } = await db.from("unlocks").select("*").eq("user_id", currentUser.id).eq("movie_id", movieId).maybeSingle();
+  if(!unlocked) return msg.textContent = "❌ Nie masz odblokowanego tego filmu.";
+
+  // insert room
+  const { data: room, error } = await db.from("rooms").insert({ movie_id: movieId, host_id: currentUser.id }).select().maybeSingle();
+  if(error || !room) return msg.textContent = "Błąd tworzenia pokoju: " + (error?.message||"");
+  // dodaj hosta do members
+  await db.from("room_members").insert({ room_id: room.id, user_id: currentUser.id });
+
+  msg.textContent = "✅ Pokój utworzony: " + (name || room.id);
+  document.getElementById("roomNameInput").value = "";
+  await loadMyRooms();
+  openRoom(room.id);
+}
+
+/* ------------------ 3) DOŁĄCZANIE PO ID ------------------ */
+async function joinRoomById(){
+  const rid = document.getElementById("joinRoomId").value.trim();
+  const msg = document.getElementById("joinMsg");
+  msg.textContent = "";
+  if(!rid) return msg.textContent = "Wpisz ID pokoju.";
+  // pobierz pokój
+  const { data: room } = await db.from("rooms").select("*").eq("id", rid).maybeSingle();
+  if(!room) return msg.textContent = "Pokój nie znaleziony.";
+
+  // sprawdź czy host ma unlock (bezpieczeństwo) — host powinien już mieć, ale dodatkowo sprawdzamy
+  const { data: hostUnlock } = await db.from("unlocks").select("*").eq("user_id", room.host_id).eq("movie_id", room.movie_id).maybeSingle();
+  if(!hostUnlock) return msg.textContent = "❌ Host nie ma odblokowanego tego filmu. Nie można dołączyć.";
+
+  // dodaj członka do room_members (jeśli nie ma)
+  const { data: existing } = await db.from("room_members").select("*").eq("room_id", rid).eq("user_id", currentUser.id).maybeSingle();
+  if(!existing) await db.from("room_members").insert({ room_id: rid, user_id: currentUser.id });
+
+  msg.textContent = "✅ Dołączono do pokoju.";
+  await loadJoinedRooms();
+  openRoom(rid);
+}
+
+/* ------------------ 4) LISTA MOICH POKOI ------------------ */
+async function loadMyRooms(){
+  const el = document.getElementById("myRoomsList");
+  el.innerHTML = "Ładowanie…";
+  const { data } = await db.from("rooms").select("id,movie_id,host_id,created_at,profiles(username)").eq("host_id", currentUser.id).order("created_at",{ascending:false});
+  if(!data?.length) return el.innerHTML = "<p class='muted'>Nie utworzyłeś żadnych pokoi.</p>";
+  // fetch movie titles
+  const movieIds = [...new Set(data.map(r=>r.movie_id))];
+  const { data: movies } = await db.from("movies").select("id,title").in("id", movieIds);
+  const map = new Map((movies||[]).map(m=>[m.id,m.title]));
+  el.innerHTML = data.map(r=>{
+    const title = map.get(r.movie_id) || "Film";
+    return `<div class="room-card">
+      <div>
+        <b>${escapeHtml(title)}</b>
+        <div class="muted">${new Date(r.created_at).toLocaleString()}</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="openRoom('${r.id}')">Otwórz</button>
+        <button class="btn secondary" onclick="deleteRoom('${r.id}')">Usuń</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+/* ------------------ 5) LISTA POKOI DO KTÓRYCH NALEŻYSZ ------------------ */
+async function loadJoinedRooms(){
+  const el = document.getElementById("joinedRoomsList");
+  el.innerHTML = "Ładowanie…";
+  const { data: memberships } = await db.from("room_members").select("room_id").eq("user_id", currentUser.id);
+  const roomIds = (memberships||[]).map(m=>m.room_id);
+  if(!roomIds.length) return el.innerHTML = "<p class='muted'>Nie jesteś w żadnym pokoju.</p>";
+  const { data } = await db.from("rooms").select("id,movie_id,host_id,created_at").in("id", roomIds).order("created_at",{ascending:false});
+  const movieIds = [...new Set(data.map(r=>r.movie_id))];
+  const { data: movies } = await db.from("movies").select("id,title").in("id", movieIds);
+  const map = new Map((movies||[]).map(m=>[m.id,m.title]));
+  el.innerHTML = data.map(r=>{
+    return `<div class="room-card">
+      <div><b>${escapeHtml(map.get(r.movie_id)||'Film')}</b><div class="muted">${new Date(r.created_at).toLocaleString()}</div></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="openRoom('${r.id}')">Otwórz</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+/* ------------------ 6) OTWIERANIE POKOJU (PLAYER + REACTIONS) ------------------ */
+async function openRoom(roomId){
+  // pobierz pokój
+  const { data: room } = await db.from("rooms").select("id,movie_id,host_id,created_at,profiles(username)").eq("id", roomId).maybeSingle();
+  if(!room){ alert("Pokój nie znaleziony."); return; }
+
+  // podstawowa walidacja: host musi mieć unlock tego filmu
+  const { data: hostUnlock } = await db.from("unlocks").select("*").eq("user_id", room.host_id).eq("movie_id", room.movie_id).maybeSingle();
+  if(!hostUnlock){ alert("Host nie ma odblokowanego tego filmu — pokój niedostępny."); return; }
+
+  currentRoom = room;
+  document.getElementById("roomView").style.display = "block";
+  document.getElementById("roomTitle").textContent = `Pokój — ${room.id}`;
+  document.getElementById("roomMeta").textContent = `Film ID: ${room.movie_id} · Host: ${room.profiles?.username || room.host_id}`;
+
+  // load movie iframe (fetch movie iframe field)
+  const { data: movie } = await db.from("movies").select("id,title,iframe").eq("id", room.movie_id).maybeSingle();
+  const playerWrapper = document.getElementById("playerWrapper");
+  playerWrapper.innerHTML = movie?.iframe ? `<div style="width:100%;height:420px;background:#000;border-radius:8px;overflow:hidden"><iframe src="${movie.iframe}" frameborder="0" allowfullscreen style="width:100%;height:100%"></iframe></div>` : "<div class='muted'>Brak odtwarzacza dla tego filmu.</div>";
+
+  // load members
+  await loadRoomMembers(roomId);
+
+  // load friends list for invite
+  await loadFriendsForInvite(roomId);
+
+  // subscribe realtime channel for this room
+  subscribeRoomChannel(roomId);
+}
+
+/* usuń pokój (tylko host) */
+async function deleteRoom(roomId){
+  if(!confirm("Usunąć pokój?")) return;
+  await db.from("room_members").delete().eq("room_id", roomId);
+  await db.from("rooms").delete().eq("id", roomId);
+  await loadMyRooms();
+  document.getElementById("roomView").style.display = "none";
+}
+
+/* opuszczenie pokoju przez użytkownika */
+async function leaveRoom(){
+  if(!currentRoom) return;
+  await db.from("room_members").delete().eq("room_id", currentRoom.id).eq("user_id", currentUser.id);
+  // wyłącz channel
+  if(roomChannel) { roomChannel.unsubscribe(); roomChannel = null; }
+  currentRoom = null;
+  document.getElementById("roomView").style.display = "none";
+  await loadJoinedRooms();
+  await loadMyRooms();
+}
+
+/* ------------------ 7) ZAPRASZANIE / LISTA CZŁONKÓW ------------------ */
+async function loadFriendsForInvite(roomId){
+  const el = document.getElementById("friendsForInvite");
+  el.innerHTML = "Ładowanie…";
+  // pobierz twoich znajomych
+  const { data: friends } = await db.from("friends").select("friend_id").eq("user_id", currentUser.id);
+  const ids = (friends||[]).map(f=>f.friend_id);
+  if(!ids.length) return el.innerHTML = "<div class='muted'>Brak znajomych do zaproszenia.</div>";
+  const { data: profiles } = await db.from("profiles").select("id,username,friend_code").in("id", ids);
+  // render
+  el.innerHTML = profiles.map(p=>`<button class="small-btn" onclick="inviteToRoom('${roomId}','${p.id}')">${escapeHtml(p.username)}</button>`).join(" ");
+}
+
+async function inviteToRoom(roomId, userId){
+  // dodaj jako członka
+  const { data: existing } = await db.from("room_members").select("*").eq("room_id", roomId).eq("user_id", userId).maybeSingle();
+  if(existing) { alert("Użytkownik już w pokoju."); return; }
+  await db.from("room_members").insert({ room_id: roomId, user_id: userId });
+  alert("✅ Zaproszono (dodano) użytkownika do pokoju.");
+  await loadRoomMembers(roomId);
+}
+
+/* lista aktualnych członków pokoju */
+async function loadRoomMembers(roomId){
+  const el = document.getElementById("roomMembersList");
+  el.innerHTML = "Ładowanie…";
+  const { data: members } = await db.from("room_members").select("user_id,joined_at,profiles(username)").eq("room_id", roomId);
+  if(!members?.length) return el.innerHTML = "<div class='muted'>Brak uczestników.</div>";
+  el.innerHTML = members.map(m=>`<div class="room-card" style="margin-bottom:6px"><div><b>${escapeHtml(m.profiles?.username||m.user_id)}</b><div class="muted">${new Date(m.joined_at).toLocaleString()}</div></div>${m.user_id===currentUser.id?'<div class="muted">Ty</div>':'<div></div>'}</div>`).join("");
+}
+
+/* ------------------ 8) SYNCHRONIZACJA (BROADCAST) ------------------ */
+function subscribeRoomChannel(roomId){
+  // unsubscribe previous
+  if(roomChannel) { roomChannel.unsubscribe(); roomChannel = null; }
+  roomChannel = db.channel('room_' + roomId);
+
+  roomChannel.on('broadcast', { event: 'player_action' }, (payload) => {
+    console.log('received player_action', payload);
+    // pokaż powiadomienie / zareaguj - tutaj możemy np. sterować playerem via postMessage
+    // payload: { action: 'play'|'pause'|'seek', value: seconds }
+    alert(`Akcja z pokoju: ${payload.action}${payload.value ? ' — ' + payload.value + 's' : ''}`);
+  });
+
+  roomChannel.subscribe((status) => {
+    if (status === 'SUBSCRIBED') {
+      console.log('subscribed to room channel', roomId);
+    }
+  });
+}
+
+async function broadcastAction(action){
+  if(!currentRoom) return alert("Brak otwartego pokoju.");
+  await db.channel('room_' + currentRoom.id).broadcast({ event: 'player_action', payload: { action } });
+}
+
+async function broadcastSeek(){
+  const val = parseFloat(document.getElementById("seekInput").value);
+  if(isNaN(val)) return alert("Wpisz czas w sekundach.");
+  if(!currentRoom) return;
+  await db.channel('room_' + currentRoom.id).broadcast({ event: 'player_action', payload: { action: 'seek', value: val } });
+}
+
+/* ------------------ HELPERS ------------------ */
+function escapeHtml(str){
+  if(!str) return '';
+  return String(str).replace(/[&<>"'`=\/]/g, function(s){ return ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;',"/":'&#x2F;','=':'&#x3D;','`':'&#x60;'
+  })[s]; });
+}
+
+/* ------------------ 9) DODATKOWE AKCJE (USUWANIE, LOGOUT) ------------------ */
+async function deleteRoomMember(roomId, userId){
+  await db.from("room_members").delete().eq("room_id", roomId).eq("user_id", userId);
+  await loadRoomMembers(roomId);
+}
+
+async function logout(){ await db.auth.signOut(); location.href="login.html"; }
+</script>
+</body>
+</html>

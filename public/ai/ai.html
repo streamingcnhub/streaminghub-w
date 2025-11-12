@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>StreamingHub - AI Asystent Filmowy</title>
+  <style>
+    :root {
+      --bg: #0b0d10;
+      --card: #151922;
+      --text: #e3e7ee;
+      --muted: #a8bfe2;
+      --brand: #4f7cff;
+      --border: #232a37;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto;
+      line-height: 1.5;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    header {
+      text-align: center;
+      padding: 24px 0;
+      border-bottom: 2px solid var(--border);
+      margin-bottom: 24px;
+    }
+    .brand { font-size: 1.8rem; font-weight: 800; color: var(--brand); }
+    .subtitle { color: var(--muted); margin-top: 8px; }
+    .chat-container {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    #chat-messages {
+      height: 500px;
+      overflow-y: auto;
+      padding: 16px;
+      background: #0e1218;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .message {
+      padding: 14px 18px;
+      border-radius: 12px;
+      max-width: 80%;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .message.ai {
+      background: linear-gradient(135deg, #8b5cf6, #6366f1);
+      align-self: flex-start;
+      color: #fff;
+    }
+    .message.user {
+      background: linear-gradient(135deg, #10b981, #059669);
+      align-self: flex-end;
+      color: #fff;
+    }
+    .message.system {
+      background: var(--border);
+      align-self: center;
+      font-size: 0.9rem;
+      color: var(--muted);
+      max-width: 90%;
+      text-align: center;
+    }
+    .typing { display: none; align-self: flex-start; padding: 12px 18px; background: var(--border); border-radius: 12px; color: var(--muted); }
+    .typing.active { display: block; }
+    .input-group { display: flex; gap: 12px; }
+    #user-input {
+      flex: 1;
+      padding: 14px 18px;
+      border-radius: 10px;
+      border: 2px solid var(--border);
+      background: #0e1218;
+      color: var(--text);
+      font-size: 1rem;
+      transition: border 0.3s;
+    }
+    #user-input:focus { outline: none; border-color: var(--brand); }
+    #send-btn {
+      padding: 14px 28px;
+      background: var(--brand);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    #send-btn:hover { background: #3d62d9; }
+    #send-btn:disabled { background: var(--border); cursor: not-allowed; }
+    @media(max-width: 600px) {
+      .container { padding: 12px; }
+      #chat-messages { height: 400px; }
+      .message { max-width: 95%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">🎬 StreamingHub AI</div>
+      <div class="subtitle">Twój osobisty asystent filmowy</div>
+    </header>
+    <div class="chat-container">
+      <div id="chat-messages">
+        <div class="message system">Ładowanie asystenta AI...</div>
+      </div>
+      <div class="typing" id="typing-indicator">AI pisze...</div>
+      <div class="input-group">
+        <input type="text" id="user-input" placeholder="Napisz swoją odpowiedź..." disabled />
+        <button id="send-btn" disabled>Wyślij</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const chatMessages = document.getElementById('chat-messages');
+    const userInput = document.getElementById('user-input');
+    const sendBtn = document.getElementById('send-btn');
+    const typingIndicator = document.getElementById('typing-indicator');
+
+    let conversationHistory = [];
+    let userName = 'Użytkowniku';
+    let userPreferences = {};
+
+    function addMessage(content, type = 'ai') {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `message ${type}`;
+      msgDiv.innerHTML = content;
+      chatMessages.appendChild(msgDiv);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function showTyping(show) {
+      typingIndicator.classList.toggle('active', show);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function toggleInput(enabled) {
+      userInput.disabled = !enabled;
+      sendBtn.disabled = !enabled;
+    }
+
+    async function sendChatMessage(message) {
+      try {
+        const response = await fetch('/api/ai-chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: message,
+            conversationHistory: conversationHistory
+          })
+        });
+
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
+
+        conversationHistory.push({ role: 'user', content: message });
+        conversationHistory.push({ role: 'assistant', content: data.response });
+
+        return { response: data.response, ready: data.readyForRecommendations };
+      } catch (error) {
+        console.error('Błąd:', error);
+        return { response: 'Przepraszam, błąd połączenia: ' + error.message, ready: false };
+      }
+    }
+
+async function getRecommendations() {
+  try {
+    const response = await fetch(VERCEL_URL + '/api/recommendations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            preferences: JSON.stringify(userPreferences),
+            conversationHistory: conversationHistory
+          })
+        });
+
+        const data = await response.json();
+        showTyping(false);
+        addMessage(data.recommendations, 'ai');
+        toggleInput(true);
+      } catch (error) {
+        console.error('Błąd:', error);
+        showTyping(false);
+        addMessage('Błąd: ' + error.message, 'system');
+        toggleInput(true);
+      }
+    }
+
+    async function handleSend() {
+      const message = userInput.value.trim();
+      if (!message) return;
+
+      addMessage(message, 'user');
+      userInput.value = '';
+      toggleInput(false);
+      showTyping(true);
+
+      userPreferences = { ...userPreferences, lastMessage: message };
+
+      const result = await sendChatMessage(message);
+      showTyping(false);
+      addMessage(result.response, 'ai');
+
+      if (result.ready) {
+        addMessage('Świetnie! Szukam dla Ciebie idealnych filmów...', 'ai');
+        await getRecommendations();
+      } else {
+        toggleInput(true);
+      }
+    }
+
+    async function init() {
+      chatMessages.innerHTML = '';
+      const greetings = [
+        `Cześć ${userName}! 🎬 Szukasz czegoś dobrego do obejrzenia?`,
+        `Witaj ${userName}! 🍿 Na co masz dziś ochotę?`,
+        `Hej ${userName}! 🎥 Pomogę Ci znaleźć idealny film!`
+      ];
+      const randomGreeting = greetings[Math.floor(Math.random() * greetings.length)];
+      addMessage(randomGreeting, 'ai');
+      toggleInput(true);
+      userInput.focus();
+    }
+
+    sendBtn.addEventListener('click', handleSend);
+    userInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && !sendBtn.disabled) handleSend();
+    });
+
+    init();
+  </script>
+</body>
+</html>

@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>StreamingHub • Filmy</title>
+  <style>
+
+:root {
+  --bg: #0b0d10;
+  --card: #151922;
+  --text: #e3e7ee;
+  --muted: #a8bfe2;
+  --brand: #4f7cff;
+  --border: #232a37;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto;
+  line-height: 1.4;
+}
+
+a { color: var(--text); text-decoration: none; }
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+header {
+  position: sticky;
+  top: 0;
+  background: rgba(11,13,16,0.9);
+  backdrop-filter: blur(6px);
+  z-index: 10;
+}
+
+.nav {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 16px;
+  flex-wrap: wrap;
+}
+
+.brand { font-weight: 800; }
+
+.nav input[type=search] {
+  flex: 1;
+  background: #0e1218;
+  border: 1px solid var(--border);
+  color: #fff;
+  padding: 10px 12px;
+  border-radius: 12px;
+  min-width: 160px;
+}
+
+.menu {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.menu a, .menu button {
+  padding: 8px 10px;
+  color: var(--muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.btn {
+  background: var(--brand);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.btn.secondary { background: #2a3446; }
+
+.badge {
+  font-size: 12px;
+  color: #fff;
+  background: #2a3446;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.card.p { padding: 12px; border: 0; }
+
+.card img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  display: block;
+}
+
+.small { font-size: 12px; color: var(--muted); }
+
+.alert {
+  background: #152031;
+  padding: 10px;
+  border-radius: 10px;
+  color: #0e1218;
+  margin: 8px 0;
+}
+
+.flex { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+textarea, input, select {
+  width: 100%;
+  padding: 10px;
+  background: #0e1218;
+  border: 1px solid var(--border);
+  color: #fff;
+  border-radius: 10px;
+  font-size: 15px;
+}
+
+footer {
+  color: var(--muted);
+  text-align: center;
+  padding: 30px 0;
+  font-size: 14px;
+}
+
+.hidden { display: none; }
+
+.video-container {
+  position: relative;
+  width: 100%;
+  padding-bottom: 56.25%;
+  height: 0;
+  overflow: hidden;
+  background: black;
+  border-radius: 22px;
+}
+
+.video-container iframe {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* RESPONSYWNOŚĆ */
+@media (max-width: 900px) {
+  .row { grid-template-columns: 1fr; }
+  .nav { flex-direction: column; align-items: stretch; }
+  .menu { justify-content: center; }
+  .card img { height: 180px; }
+  .container { padding: 12px; }
+}
+
+@media (max-width: 600px) {
+  .grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .btn { padding: 10px 12px; font-size: 14px; }
+  h1, h2, h3 { font-size: 1.1rem; }
+  .card img { height: 150px; }
+  input, select, textarea { font-size: 14px; }
+  .flex { gap: 8px; }
+}
+
+@media (max-width: 400px) {
+  .nav { padding: 8px; }
+  .nav input[type=search] { padding: 8px; font-size: 14px; }
+  .menu a, .menu button { font-size: 13px; }
+  .grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .card img { height: 130px; }
+  footer { font-size: 12px; }
+}
+
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav container">
+    <a class="brand" href="#" onclick="UI.show('home')">🎬 StreamingHub</a>
+    <form onsubmit="event.preventDefault(); UI.search(this.q.value)" style="flex:1">
+      <input type="search" name="q" placeholder="Szukaj filmów…" />
+    </form>
+    
+    <nav class="menu flex">
+      <a href="#" onclick="UI.show('home')">Filmy</a>
+      <a href="seriale.html">seriale</a>
+      <a href="top.html">TOP</a>
+<a href="moja-biblioteka.html">Moja biblioteka</a>
+<form onsubmit="event.preventDefault(); Auth.logout(); window.location='login.html';">
+  <button class="btn secondary">Wyloguj</button>
+</form>
+
+    </nav>
+
+  </div>
+</header>
+
+<main class="container" id="app"></main>
+
+<footer>© <script>document.write(new Date().getFullYear())</script> StreamingHub • free video</footer>
+
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* =========================
+   KONFIG: PODMIEŃ NA SWOJE
+   ========================= */
+const SUPABASE_URL = "https://jjmnacolebxsifmnmqks.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpqbW5hY29sZWJ4c2lmbW5tcWtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU3OTcyNDQsImV4cCI6MjA3MTM3MzI0NH0.1hNoBQ4wDuA_t_vscorQ6FRb-aW8IxHEDxuZKEhndv0";
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* =========================
+   UTILS
+   ========================= */
+const delay = (ms)=>new Promise(r=>setTimeout(r,ms));
+function escapeHtml(str){ return (str||"").replace(/[&<>"']/g, s=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[s])); }
+function toast(msg){ const d=document.createElement("div"); d.className="alert"; d.textContent=msg; d.style.position="fixed"; d.style.right="16px"; d.style.bottom="16px"; d.style.zIndex=9999; document.body.appendChild(d); setTimeout(()=>d.remove(),2200); }
+
+/* =========================
+   AUTH + PROFILES
+   ========================= */
+const Auth = {
+async currentUser(){ 
+  const { data:{ user } } = await db.auth.getUser(); 
+  return user || null; 
+},
+
+  async currentProfile(){
+    const user = await Auth.currentUser(); if(!user) return null;
+    const { data, error } = await db.from("profiles").select("*").eq("id", user.id).maybeSingle();
+    if(error){ console.error(error); return null; }
+    return data ? { ...user, ...data } : { ...user };
+  },
+  async register(username, email, password){
+    const { data, error } = await db.auth.signUp({ email, password });
+    if(error) return alert("❌ " + error.message);
+    const user = data.user;
+    // profil może już być tworzony triggerem; mimo to upsert bezpieczny
+    const { error: pErr } = await db.from("profiles").upsert({
+      id: user.id, username, points: 0, is_admin: false
+    });
+    if(pErr) console.warn("Profil:", pErr.message);
+    toast("✔️ Konto utworzone. Sprawdź e-mail (jeśli wymagane).");
+    UI.show("home");
+  },
+  async login(email, password){
+    const { error } = await db.auth.signInWithPassword({ email, password });
+    if(error) return alert("❌ " + error.message);
+    await UI.updateHeader();
+    toast("✔️ Zalogowano");
+    UI.show("home");
+  },
+  async logout(){ await db.auth.signOut(); await UI.updateHeader(); toast("Wylogowano"); UI.show("home"); }
+};
+
+// reaguj na zmianę sesji
+db.auth.onAuthStateChange(async ()=>{ UI.updateHeader(); });
+
+/* =========================
+   DATA ACCESS (Supabase)
+   ========================= */
+// Movies
+async function getMovies(filters={}){
+  let q = db.from("movies").select("*");
+  if(filters.q) q = q.ilike("title", `%${filters.q}%`);
+  if(filters.category_id) q = q.eq("category_id", filters.category_id);
+  if(filters.year) q = q.eq("year", filters.year);
+  if(filters.min_duration) q = q.gte("duration", filters.min_duration);
+  // sort
+  if(filters.sort === "new") q = q.order("created_at", { ascending: false });
+  else q = q.order("created_at", { ascending: false });
+  const { data, error } = await q;
+  if(error) throw error;
+  return data||[];
+}
+async function getMovie(id){
+  const { data, error } = await db.from("movies").select("*").eq("id", id).single();
+  if(error) throw error; return data;
+}
+async function addMovie(payload){ return db.from("movies").insert(payload); }
+async function deleteMovie(id){ return db.from("movies").delete().eq("id", id); }
+
+// Categories
+async function getCategories(){
+  const { data, error } = await db.from("categories").select("*").order("name");
+  if(error) throw error; return data||[];
+}
+async function addCategory(name){ return db.from("categories").insert({ name }); }
+async function delCategory(id){ return db.from("categories").delete().eq("id", id); }
+
+// Ratings
+async function getRatingsFor(movieId){
+  const { data, error } = await db.from("ratings").select("score").eq("movie_id", movieId);
+  if(error) throw error; return data||[];
+}
+async function upsertRating(movieId, userId, score){
+  return db.from("ratings").upsert({ movie_id: movieId, user_id: userId, score });
+}
+async function getUserRating(movieId, userId){
+  const { data, error } = await db.from("ratings").select("*").eq("movie_id", movieId).eq("user_id", userId).maybeSingle();
+  if(error) throw error; return data||null;
+}
+
+// Comments
+async function getComments(movieId){
+  // pobierz komentarze + nazwę autora z profiles
+  const { data, error } = await db
+    .from("comments")
+    .select("id,text,created_at,user_id,profiles(username)")
+    .eq("movie_id", movieId)
+    .order("created_at", { ascending:false });
+  if(error) throw error; return data||[];
+}
+async function addComment(movieId, userId, text){
+  return db.from("comments").insert({ movie_id: movieId, user_id: userId, text });
+}
+
+// Wishlist
+async function getWishlist(userId){
+  const { data, error } = await db.from("wishlist").select("movie_id").eq("user_id", userId);
+  if(error) throw error; return new Set((data||[]).map(x=>x.movie_id));
+}
+async function toggleWishlist(userId, movieId){
+  const { data, error } = await db.from("wishlist").select("*").eq("user_id", userId).eq("movie_id", movieId).maybeSingle();
+  if(error && error.code!=="PGRST116") console.warn(error);
+  if(data){
+    return db.from("wishlist").delete().eq("id", data.id);
+  } else {
+    return db.from("wishlist").insert({ user_id:userId, movie_id:movieId });
+  }
+}
+
+// Watch history
+async function addWatch(userId, movieId){
+  return db.from("watch_history").insert({ user_id: userId, movie_id: movieId, watched_at: new Date().toISOString() });
+}
+async function getWatchHistory(userId, limit=100){
+  const { data, error } = await db
+    .from("watch_history")
+    .select("movie_id, watched_at, movies(title,thumb,id)")
+    .eq("user_id", userId)
+    .order("watched_at", { ascending:false })
+    .limit(limit);
+  if(error) throw error; return data||[];
+}
+
+async function buyMovie(movieId, pointsRequired, megaUrl) {
+  const userId = getCurrentUserId(); // Zakładam, że masz funkcję zwracającą aktualne ID użytkownika
+
+  // Pobierz dane użytkownika
+  const { data: user, error: userError } = await supabase
+    .from('users')
+    .select('points')
+    .eq('id', userId)
+    .single();
+
+  if (userError || !user) {
+    alert('Nie udało się pobrać danych użytkownika.');
+    return;
+  }
+
+  // Sprawdź, czy użytkownik ma wystarczającą liczbę punktów
+  if (user.points < pointsRequired) {
+    alert('Masz za mało punktów, aby kupić ten film.');
+    return;
+  }
+
+  // Odejmij punkty
+  const { error: updateError } = await supabase
+    .from('users')
+    .update({ points: user.points - pointsRequired })
+    .eq('id', userId);
+
+  if (updateError) {
+    alert('Nie udało się zaktualizować punktów.');
+    return;
+  }
+
+  // Dodaj wpis do tabeli unlocks
+  const { error: insertError } = await supabase
+    .from('unlocks')
+    .insert([{ user_id: userId, movie_id: movieId }]);
+
+  if (insertError) {
+    alert('Nie udało się odblokować filmu.');
+    return;
+  }
+
+  // Odśwież przycisk, by zmienił się na „Oglądaj”
+  renderMovieButton(movieId, pointsRequired, megaUrl);
+}
+
+// Points & unlocks
+async function addPoints(userId, change, reason){
+  // 1) log
+  const { error: logErr } = await db.from("points_log").insert({ user_id:userId, change, reason });
+  if(logErr) throw logErr;
+  // 2) update profiles.points (race-safe-ish: re-read then set)
+  const { data: prof } = await db.from("profiles").select("points").eq("id", userId).single();
+  const next = (prof?.points||0) + change;
+  const { error: upErr } = await db.from("profiles").update({ points: next }).eq("id", userId);
+  if(upErr) throw upErr;
+}
+async function getPoints(userId){
+  const { data, error } = await db.from("profiles").select("points").eq("id", userId).single();
+  if(error) throw error; return data?.points||0;
+}
+async function ensureUnlocked(userId, movieId){
+  const { data, error } = await db.from("unlocks").select("*").eq("user_id", userId).eq("movie_id", movieId).maybeSingle();
+  if(error && error.code!=="PGRST116") throw error;
+  if(!data){ const { error: insErr } = await db.from("unlocks").insert({ user_id:userId, movie_id:movieId }); if(insErr) throw insErr; }
+}
+async function isUnlocked(userId, movieId){
+  const { data, error } = await db.from("unlocks").select("id").eq("user_id", userId).eq("movie_id", movieId).maybeSingle();
+  if(error && error.code!=="PGRST116") throw error;
+  return !!data;
+}
+
+// Codes
+async function redeemCode(userId, codeStr){
+  const code = (codeStr||"").trim();
+  if(!code) return { ok:false, msg:"Podaj kod" };
+  const { data, error } = await db.from("codes").select("*").eq("code", code).maybeSingle();
+  if(error) return { ok:false, msg:error.message };
+  if(!data) return { ok:false, msg:"Nieprawidłowy kod" };
+  if((data.limit_left||0) <= 0) return { ok:false, msg:"Wyczerpany limit użyć" };
+  if(data.expires && new Date(data.expires) < new Date()) return { ok:false, msg:"Kod wygasł" };
+
+  if(data.type === "points"){
+    await addPoints(userId, data.amount, `Kod: ${data.code}`);
+  } else if(data.type === "premium"){
+    // wymaga kolumny premium_until w profiles
+    const { data: prof } = await db.from("profiles").select("premium_until").eq("id", userId).maybeSingle();
+    if(!prof || typeof prof.premium_until === "undefined"){
+      return { ok:false, msg:"Brak pola premium w profiles (premium_until)" };
+    }
+    const days = Number(data.days||data.amount||7);
+    const base = prof.premium_until ? new Date(prof.premium_until) : new Date();
+    const start = (prof.premium_until && new Date(prof.premium_until) > new Date()) ? new Date(prof.premium_until) : new Date();
+    const until = new Date(start.getTime() + days*24*60*60*1000);
+    const { error: upErr } = await db.from("profiles").update({ premium_until: until.toISOString() }).eq("id", userId);
+    if(upErr) return { ok:false, msg: upErr.message };
+  }
+  // zmniejsz limit
+  await db.from("codes").update({ limit_left: (data.limit_left||0) - 1 }).eq("id", data.id);
+  return { ok:true, msg:"Kod zrealizowany ✔️" };
+}
+
+// Leaderboard (last N days)
+async function leaderboard(days){
+  const since = new Date(Date.now() - days*24*60*60*1000).toISOString();
+  const { data, error } = await db.from("points_log").select("user_id, change, created_at").gte("created_at", since);
+  if(error) throw error;
+  const map = new Map();
+  (data||[]).forEach(r=>{ if(r.change>0) map.set(r.user_id, (map.get(r.user_id)||0) + r.change); });
+  const entries = [...map.entries()].map(([user_id, gained])=>({ user_id, gained }));
+  entries.sort((a,b)=>b.gained-a.gained);
+  const top = entries.slice(0,100);
+  // dołącz nicki
+  if(top.length){
+    const ids = top.map(t=>t.user_id);
+    const { data: profs } = await db.from("profiles").select("id,username").in("id", ids);
+    const nameById = new Map((profs||[]).map(p=>[p.id,p.username]));
+    top.forEach(t=> t.username = nameById.get(t.user_id)||"Użytkownik");
+  }
+  return top.map((t,i)=>({ rank:i+1, user:t.username, gained:t.gained }));
+}
+
+/* =========================
+   UI
+   ========================= */
+const UI = {
+  el: ()=>document.getElementById("app"),
+  async updateHeader(){
+    const u = await Auth.currentProfile();
+    document.getElementById("adminLink")?.classList?.toggle("hidden", !(u&&u.is_admin));
+    document.getElementById("logoutForm")?.classList?.toggle("hidden", !u);
+    document.getElementById("authLinks")?.classList?.toggle("hidden", !!u);
+  },
+  async show(view, params={}){
+    const app = UI.el();
+    const me = await Auth.currentProfile();
+
+    // HOME
+    if(view==="home"){
+      const cats = await getCategories();
+      const movies = await getMovies({ sort:"new" });
+
+      // policz ratingi zbiorczo
+      const ratingsMap = await UI._avgRatingsMap(movies.map(m=>m.id));
+
+      // Historia dla zalogowanych
+      let historyHTML = "";
+      if(me){
+        const hist = await getWatchHistory(me.id, 12);
+        if(hist.length){
+          historyHTML = `
+            <section class="section mt-8">
+              <div class="flex" style="justify-content:space-between;">
+                <h2>Historia oglądania</h2>
+                <a href="#" onclick="UI.show('me')">zobacz wszystko →</a>
+              </div>
+              <div class="grid">
+                ${hist.map(h=> UI.card(h.movies, ratingsMap.get(h.movies?.id))).join("")}
+              </div>
+            </section>`;
+        }
+      }
+
+      app.innerHTML = `
+        ${UI.filters(cats)}
+        ${historyHTML}
+        <section class="section mt-8">
+          <div class="flex" style="justify-content:space-between">
+            <h2>Nowo dodane</h2>
+            <a class="small" href="#" onclick="UI.search('', {sort:'new'})">Najświeższe →</a>
+          </div>
+          <div class="grid">
+            ${movies.map(m=> UI.card(m, ratingsMap.get(m.id))).join("")}
+          </div>
+        </section>
+      `;
+    }
+
+    // MOVIE
+    else if(view==="movie"){
+      const id = Number(params.id);
+      let m; try { m = await getMovie(id); } catch { app.innerHTML=`<div class="alert">Nie znaleziono</div>`; return; }
+      const [comments, ratings] = await Promise.all([ getComments(id), getRatingsFor(id) ]);
+      const avg = ratings.length ? (ratings.reduce((a,b)=>a+b.score,0)/ratings.length).toFixed(1) : null;
+      const youRated = me ? await getUserRating(id, me.id) : null;
+      const unlocked = me ? await isUnlocked(me.id, id) : false;
+      const canWatch = !!me && (unlocked || (m.points_required||0)===0);
+
+      app.innerHTML = `
+        <div class="flex" style="justify-content:space-between;">
+          <div>
+            <h1>${escapeHtml(m.title)}</h1>
+            <div class="small">Rok: ${m.year||"?"} • Długość: ${m.duration||"?"} min</div>
+            ${m.points_required ? `
+    <div class="mt-2 alert">
+    Dostęp za: <b>${m.points_required}</b> pkt
+    ${me && !(await isUnlocked(me.id, m.id)) ? `
+      <button class="btn mt-2" onclick="UI.buyMovie(${m.id}, ${m.points_required})">
+        Kup dostęp
+      </button>
+    ` : ""}
+  </div>` : ""}
+
+          </div>
+          <div class="flex">
+            ${me ? `<button class="btn secondary" onclick="UI.onToggleWishlist(${m.id})">Chcę obejrzeć</button>` : ""}
+          </div>
+        </div>
+        <img class="mt-4" src="${m.thumb}" style="width:100%;max-height:360px;object-fit:cover;border-radius:14px"/>
+        <div class="mt-4"><p>${escapeHtml(m.description||"")}</p></div>
+
+        <div class="mt-4">
+          ${me ? (canWatch ? `<a class="btn" href="#" onclick="UI.show('watch',{id:${m.id}})">Oglądaj</a>` :
+            `<button class="btn" onclick="UI.unlock(${m.id})">Odblokuj za punkty</button> <span class="small">Masz: <span id="myPoints">…</span> pkt</span>`) :
+            `<a class="btn" href="#" onclick="UI.show('login')">Zaloguj, aby oglądać</a>`}
+        </div>
+
+        <hr class="mt-8">
+        <section class="mt-4">
+          <h3>Oceny</h3>
+          <div class="flex" style="gap:16px;align-items:center">
+            <div>Średnia: <strong>${avg?avg:'-'}</strong>/10 (${ratings.length || 0} ocen)</div>
+            ${me ? `
+              <form class="flex" onsubmit="event.preventDefault(); UI.rate(${m.id}, this.score.value)">
+                <select name="score">
+                  ${Array.from({length:10},(_,i)=>i+1).map(i=>`<option value="${i}" ${youRated&&youRated.score===i?'selected':''}>${i}</option>`).join('')}
+                </select>
+                <button class="btn secondary">Oceń</button>
+              </form>
+            ` : ""}
+          </div>
+        </section>
+
+        <section class="mt-4">
+          <h3>Komentarze</h3>
+          ${me ? `
+            <form onsubmit="event.preventDefault(); UI.comment(${m.id}, this.text.value); this.reset();">
+              <textarea name="text" rows="3" placeholder="Napisz komentarz..."></textarea>
+              <button class="btn mt-2">Dodaj</button>
+            </form>` : `<div class="alert">Zaloguj się, aby dodać komentarz.</div>`}
+          <div class="mt-4" id="commentsBox">
+            ${comments.map(c=>`
+              <div class="card p">
+                <div class="small"><b>${escapeHtml(c.profiles?.username || 'Użytkownik')}</b> • ${new Date(c.created_at).toLocaleString()}</div>
+                <div class="mt-2">${escapeHtml(c.text)}</div>
+              </div>`).join('')}
+          </div>
+        </section>
+      `;
+
+      // jeśli trzeba, doładuj punkty
+      if(me && m.points_required){
+        const pts = await getPoints(me.id);
+        const el = document.getElementById("myPoints"); if(el) el.textContent = pts;
+      }
+    }
+
+    // WATCH
+    else if(view==="watch"){
+      if(!me) return UI.show("login");
+      const id = Number(params.id);
+      const m = await getMovie(id);
+      const unlocked = await isUnlocked(me.id, id);
+      if(!unlocked && (m.points_required||0)>0){ return UI.show("movie",{id}); }
+      await addWatch(me.id, id);
+      app.innerHTML = `
+        <div class="flex" style="justify-content:space-between;align-items:center">
+          <h1>Odtwarzacz: ${escapeHtml(m.title)}</h1>
+          <a class="btn secondary" href="#" onclick="UI.show('movie',{id:${m.id}})">← Powrót</a>
+        </div>
+        <div class="video-container mt-4"><iframe src="${m.iframe}" allowfullscreen></iframe></div>
+        <div class="small mt-2">Jakość, głośność i prędkość ustawia hosting iframe.</div>
+      `;
+    }
+
+    // LOGIN/REGISTER/PROFILE usunięte - tylko filmy
+
+    else if(view==="me"){
+      if(!me) return UI.show("login");
+      const hist = await getWatchHistory(me.id, 100);
+      const wishSet = await getWishlist(me.id);
+      const wishIds = [...wishSet];
+      let wishMovies = [];
+      if(wishIds.length){
+        const { data } = await db.from("movies").select("*").in("id", wishIds);
+        wishMovies = data||[];
+      }
+      app.innerHTML = `
+        <h1>Mój profil</h1>
+        <div class="grid" style="grid-template-columns:2fr 1fr;gap:16px">
+          <div class="card p">
+            <h3>Profil</h3>
+            <p><strong>${escapeHtml(me.username||me.email||"Użytkownik")}</strong></p>
+            <p>Punkty: <strong id="pts">${me.points||0}</strong></p>
+            <form class="mt-2" onsubmit="event.preventDefault(); UI.saveBio(this.username.value)">
+              <label>Nick</label>
+              <input name="username" value="${escapeHtml(me.username||'')}">
+              <button class="btn mt-2">Zapisz</button>
+            </form>
+            <div class="mt-4">
+              <button class="btn" onclick="UI.earnAd()">+50 pkt (demo)</button>
+              <form class="flex mt-2" onsubmit="event.preventDefault(); UI.redeem(this.code.value); this.reset();">
+                <input type="text" name="code" placeholder="Kod premium/punkty">
+                <button class="btn secondary">Użyj</button>
+              </form>
+            </div>
+          </div>
+          <div class="card p">
+            <h3>Skróty</h3>
+            <div class="small">Zgłoś błąd? Napisz w komentarzu pod dowolnym filmem 😉</div>
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <h3>Historia oglądania</h3>
+          <div class="grid">${hist.map(h=> UI.card(h.movies)).join("") || '<div class="small">Brak historii.</div>'}</div>
+        </div>
+        <div class="mt-4">
+          <h3>Lista „Chcę obejrzeć”</h3>
+          <div class="grid">${wishMovies.map(m=> UI.card(m)).join("") || '<div class="small">Pusto.</div>'}</div>
+        </div>
+      `;
+    }
+
+    // TOP usunięte - tylko filmy
+
+    else if(view==="admin"){
+      if(!(me && me.is_admin)){ app.innerHTML = "<div class='alert'>Brak dostępu.</div>"; return; }
+      const [cats, movies] = await Promise.all([getCategories(), getMovies()]);
+      app.innerHTML = `
+        <h1>Panel admina</h1>
+        <div class="grid" style="grid-template-columns:1fr 1fr;gap:16px">
+          <div class="card p">
+            <h3>Dodaj film</h3>
+            <form onsubmit="event.preventDefault(); UI.addMovie(this)">
+              <label>Tytuł</label><input name="title" required>
+              <label>Opis</label><textarea name="description"></textarea>
+              <label>Miniatura (URL)</label><input name="thumb" required>
+              <label>Iframe src (URL hostingu)</label><input name="iframe" required placeholder="https://...">
+              <div class="row">
+                <div>
+                  <label>Kategoria</label>
+                  <select name="category_id">${cats.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("")}</select>
+                </div>
+                <div><label>Rok</label><input type="number" name="year"></div>
+              </div>
+              <div class="row">
+                <div><label>Długość (min)</label><input type="number" name="duration"></div>
+                <div><label>Punkty wymagane</label><input type="number" name="points_required" value="0"></div>
+              </div>
+              <button class="btn mt-2">Dodaj</button>
+            </form>
+          </div>
+
+          <div class="card p">
+            <h3>Kategorie</h3>
+            <form class="flex" onsubmit="event.preventDefault(); UI.addCategory(this.name.value); this.reset();">
+              <input name="name" placeholder="Nazwa kategorii">
+              <button class="btn secondary">Dodaj</button>
+            </form>
+            <div class="mt-2">
+              ${cats.map(c=>`<span class="badge" style="margin-right:6px">${escapeHtml(c.name)} <a href="#" onclick="UI.delCategory(${c.id})" class="small">×</a></span>`).join(" ")}
+            </div>
+          </div>
+
+          <div class="card p" style="grid-column:1/3">
+            <h3>Lista filmów</h3>
+            <table style="width:100%;border-collapse:collapse">
+              <tr><th style="text-align:left">Tytuł</th><th>Punkty</th><th></th></tr>
+              ${movies.map(m=>`
+                <tr>
+                  <td><a href="#" onclick="UI.show('movie',{id:${m.id}})">${escapeHtml(m.title)}</a></td>
+                  <td>${m.points_required||0}</td>
+                  <td><button class="btn secondary" onclick="UI.deleteMovie(${m.id})">Usuń</button></td>
+                </tr>`).join("")}
+            </table>
+          </div>
+        </div>
+      `;
+    }
+  },
+
+  async _avgRatingsMap(movieIds){
+    const map = new Map();
+    if(!movieIds.length) return map;
+    const { data, error } = await db.from("ratings").select("movie_id, score").in("movie_id", movieIds);
+    if(error) return map;
+    const by = {};
+    (data||[]).forEach(r=>{
+      by[r.movie_id] ||= [];
+      by[r.movie_id].push(r.score);
+    });
+    movieIds.forEach(id=>{
+      const arr = by[id]||[];
+      map.set(id, arr.length ? (arr.reduce((a,b)=>a+b,0)/arr.length) : null);
+    });
+    return map;
+  },
+
+  filters(categories){
+    return `
+    <section class="section mt-8">
+      <h2>Filtruj</h2>
+      <form class="form" onsubmit="event.preventDefault(); UI.search(this.q.value, {
+        category_id:this.cat.value||null, year:this.year.value||null,
+        min_duration:this.len.value||null, sort:this.sort.value
+      })">
+        <div class="row">
+          <div><label>Kategoria</label>
+            <select name="cat"><option value="">—</option>${categories.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("")}</select>
+          </div>
+          <div><label>Rok</label><input type="number" name="year"></div>
+        </div>
+        <div class="row">
+          <div><label>Min. długość (min)</label><input type="number" name="len"></div>
+          <div><label>Sortowanie</label>
+            <select name="sort">
+              <option value="new">Najnowsze</option>
+            </select>
+          </div>
+        </div>
+        <label>Szukaj</label><input type="text" name="q" placeholder="Tytuł...">
+        <button class="btn mt-4">Szukaj</button>
+      </form>
+    </section>`;
+  },
+
+  // <-- ZAMIANA: tutaj zmieniłem linki aby ustawiały #hash wygenerowany z tytułu
+  card(m, avg){
+    if(!m) return "";
+    // funkcja czyszcząca tytuł na hash (bez polskich znaków, spacje -> '-')
+    const clean = (str) => (str||"").toLowerCase()
+      .replace(/[ąćęłńóśźż]/g, c => ({ "ą":"a","ć":"c","ę":"e","ł":"l","ń":"n","ó":"o","ś":"s","ź":"z","ż":"z" }[c]||c))
+      .replace(/[^a-z0-9\-]+/g,"-")
+      .replace(/\-+/g,"-")
+      .replace(/^\-|\-$/g,"");
+    const slug = clean(m.title);
+    return `<div class="card">
+      <a href="#${slug}" onclick="UI.show('movie',{id:${m.id}})"><img src="${m.thumb}" alt="${escapeHtml(m.title)}"></a>
+      <div class="card p">
+        <div class="flex" style="justify-content:space-between;">
+          <strong><a href="#${slug}" onclick="UI.show('movie',{id:${m.id}})">${escapeHtml(m.title)}</a></strong>
+          <span class="badge">★ ${avg?avg.toFixed(1):"-"}</span>
+        </div>
+        <div class="small mt-2">czas: ${m.duration||"?"} min • rok: ${m.year||"?"}</div>
+      </div>
+    </div>`;
+  },
+
+  async search(q, extra={}){
+    const cats = await getCategories();
+    const movies = await getMovies({ q, ...extra });
+    const ratingsMap = await UI._avgRatingsMap(movies.map(m=>m.id));
+    const app = UI.el();
+    app.innerHTML = UI.filters(cats) + `
+      <h3 class="mt-4">Wyniki</h3>
+      <div class="grid">${movies.map(m=>UI.card(m, ratingsMap.get(m.id))).join("") || '<div class="small">Brak wyników.</div>'}</div>
+    `;
+  },
+
+  async onToggleWishlist(movieId){
+    const me = await Auth.currentProfile(); if(!me) return UI.show("login");
+    await toggleWishlist(me.id, movieId);
+    toast("Zaktualizowano listę.");
+  },
+
+  async unlock(movieId){
+    const me = await Auth.currentProfile(); if(!me) return UI.show("login");
+    const m = await getMovie(movieId);
+    if((m.points_required||0)===0){ await ensureUnlocked(me.id, movieId); return UI.show('watch',{id:movieId}); }
+    const have = await getPoints(me.id);
+    if(have < (m.points_required||0)) return toast("Za mało punktów");
+    await addPoints(me.id, -(m.points_required||0), `Odblokowanie: ${m.title}`);
+    await ensureUnlocked(me.id, movieId);
+    toast("Odblokowano ✔️"); UI.show('watch',{id:movieId});
+  },
+
+async rate(movieId, score){
+  const me = await Auth.currentProfile();
+  if (!me) return UI.show("login");
+  score = Number(score);
+
+  // sprawdź, czy użytkownik już oceniał
+  const existing = await getUserRating(movieId, me.id);
+  if (existing) {
+    // aktualizacja istniejącej oceny
+    const { error } = await db
+      .from("ratings")
+      .update({ score })
+      .eq("movie_id", movieId)
+      .eq("user_id", me.id);
+    if (error) {
+      console.error(error);
+      return toast("❌ Błąd przy aktualizacji oceny.");
+    }
+    toast("✔️ Zmieniono Twoją ocenę!");
+  } else {
+    // nowa ocena
+    const { error } = await db
+      .from("ratings")
+      .insert({ movie_id: movieId, user_id: me.id, score });
+    if (error) {
+      console.error(error);
+      return toast("❌ Błąd przy dodawaniu oceny.");
+    }
+    toast("✔️ Ocena dodana!");
+  }
+
+  // odśwież tylko sekcję ocen — nie przeładowuj całej strony
+  const ratings = await getRatingsFor(movieId);
+  const avg = ratings.length
+    ? (ratings.reduce((a, b) => a + b.score, 0) / ratings.length).toFixed(1)
+    : "-";
+  const count = ratings.length;
+  const youRated = await getUserRating(movieId, me.id);
+
+  // zaktualizuj tekst na stronie bez reloadu
+  const movieSection = document.querySelector("section.mt-4");
+  if (movieSection) {
+    movieSection.querySelector("div strong").textContent = avg;
+    const sel = movieSection.querySelector("select[name='score']");
+    if (sel) sel.value = youRated.score;
+  }
+},
+
+  async comment(movieId, text){
+    const me = await Auth.currentProfile(); if(!me) return UI.show("login");
+    text = (text||"").trim(); if(!text) return;
+    await addComment(movieId, me.id, text.slice(0,2000));
+    UI.show('movie',{id:movieId});
+  },
+    async buyMovie(movieId, cost){
+    const me = await Auth.currentProfile();
+    if(!me) return UI.show("login");
+
+    const have = await getPoints(me.id);
+    if(have < cost){
+      return toast("❌ Masz za mało punktów");
+    }
+
+    // odejmij punkty
+    await addPoints(me.id, -cost, `Zakup filmu #${movieId}`);
+
+    // zapisz odblokowanie
+    await ensureUnlocked(me.id, movieId);
+
+    toast("✔️ Film odblokowany!");
+    UI.show("movie", { id: movieId }); // odśwież widok
+  },
+
+
+  async saveBio(username){
+    const me = await Auth.currentProfile(); if(!me) return;
+    await db.from("profiles").update({ username: String(username||"").slice(0,50) }).eq("id", me.id);
+    toast("Zapisano ✔️"); UI.show('me');
+  },
+
+  async earnAd(){
+    const me = await Auth.currentProfile(); if(!me) return UI.show("login");
+    await addPoints(me.id, 50, "Reklama (demo)");
+    toast("Zdobyto 50 pkt");
+    UI.show('me');
+  },
+
+  async redeem(code){
+    const me = await Auth.currentProfile(); if(!me) return UI.show("login");
+    const res = await redeemCode(me.id, code);
+    toast(res.msg);
+    UI.show('me');
+  },
+
+  async addMovie(form){
+    const payload = {
+      title: form.title.value.trim(),
+      description: form.description.value.trim(),
+      thumb: form.thumb.value.trim(),
+      iframe: form.iframe.value.trim(),
+      category_id: form.category_id.value ? Number(form.category_id.value) : null,
+      year: form.year.value ? Number(form.year.value) : null,
+      duration: form.duration.value ? Number(form.duration.value) : null,
+      points_required: form.points_required.value ? Number(form.points_required.value) : 0,
+      created_at: new Date().toISOString()
+    };
+    const { error } = await addMovie(payload);
+    if(error){ alert("❌ " + error.message); return; }
+    toast("Film dodany ✔️");
+    UI.show('admin');
+  },
+
+  async deleteMovie(id){
+    const { error } = await deleteMovie(id);
+    if(error){ alert("❌ " + error.message); return; }
+    UI.show('admin');
+  },
+
+  async addCategory(name){
+    name = (name||"").trim(); if(!name) return;
+    const { error } = await addCategory(name);
+    if(error) alert("❌ " + error.message);
+    UI.show('admin');
+  },
+
+  async delCategory(id){
+    const { error } = await delCategory(id);
+    if(error) alert("❌ " + error.message);
+    UI.show('admin');
+  }
+};
+
+// Start
+UI.updateHeader();
+UI.search('', { sort: 'new' });
+</script>
+
+<!-- =========== Router hash: otwieranie filmu po #hash =========== -->
+<script>
+/*
+  Obsługa hash-a:
+  - po wejściu na filmy.html#slug lub zmianie hash -> spróbuj znaleźć film po wygenerowanym 'slug' z tytułu
+  - jeśli znajdzie, otwórz UI.show('movie', {id})
+*/
+function makeSlug(str){
+  return (str||"").toLowerCase()
+    .replace(/[ąćęłńóśźż]/g, c => ({ "ą":"a","ć":"c","ę":"e","ł":"l","ń":"n","ó":"o","ś":"s","ź":"z","ż":"z" }[c]||c))
+    .replace(/[^a-z0-9\-]+/g,"-")
+    .replace(/\-+/g,"-")
+    .replace(/^\-|\-$/g,"");
+}
+
+async function handleHash(){
+  const hash = (window.location.hash||"").replace("#","");
+  if(!hash){
+    // jeśli nie ma hasha, pokaż home (ale nie wymuszaj jeżeli już jesteśmy np. w innym widoku)
+    // UI.show('home');
+    return;
+  }
+  try{
+    const movies = await getMovies();
+    const movie = movies.find(m => makeSlug(m.title) === hash);
+    if(movie){
+      UI.show('movie', { id: movie.id });
+      // scroll to top for nicer UX
+      window.scrollTo(0,0);
+    } else {
+      // nie znaleziono - zostaw stronę jak jest albo pokaż home
+      // UI.show('home');
+      console.warn("Hash nie pasuje do żadnego filmu:", hash);
+    }
+  }catch(e){
+    console.error(e);
+  }
+}
+window.addEventListener("hashchange", handleHash);
+window.addEventListener("DOMContentLoaded", handleHash);
+</script>
+</body>
+</html>

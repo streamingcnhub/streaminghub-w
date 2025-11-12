@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Znajomi • StreamingHub</title>
+  <style>
+    :root {
+      --bg: #0b0d10;
+      --card: #151922;
+      --text: #e3e7ee;
+      --muted: #a8bfe2;
+      --brand: #4f7cff;
+      --border: #232a37;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto;
+      min-height: 100vh;
+    }
+    .container { max-width: 1100px; margin: 0 auto; padding: 16px; }
+    header {
+      position: sticky;
+      top: 0;
+      background: rgba(11, 13, 16, .8);
+      backdrop-filter: blur(6px);
+      z-index: 10;
+    }
+    .nav { display: flex; gap: 12px; align-items: center; padding: 12px 16px; }
+    .brand { font-weight: 800; }
+    .menu a, .menu button {
+      padding: 8px 10px;
+      color: var(--muted);
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+    .btn {
+      background: var(--brand);
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+    }
+    .btn.secondary { background: #2a3446; }
+    .btn.danger { background: #c24b4b; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      padding: 16px;
+      border-radius: 12px;
+      margin-top: 16px;
+    }
+    .friend-item {
+      background: #0e1218;
+      border: 1px solid var(--border);
+      padding: 12px;
+      border-radius: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .friend-info { display: flex; flex-direction: column; }
+    .muted { color: var(--muted); font-size: 13px; }
+    #profileView {
+      display: none;
+      background: var(--card);
+      border: 1px solid var(--border);
+      padding: 20px;
+      border-radius: 12px;
+      margin-top: 20px;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body>
+<header>
+  <div class="nav container">
+    <a class="brand" href="filmy.html">🎬 StreamingHub</a>
+    <nav class="menu" style="margin-left:auto">
+      <a href="filmy.html">Filmy</a>
+      <a href="seriale.html">Seriale</a>
+      <a href="top.html">TOP</a>
+      <a href="moja-biblioteka.html">Moja biblioteka</a>
+      <a href="znajomi.html" style="color:#fff">Znajomi</a>
+      <button onclick="logout()" class="btn secondary">Wyloguj</button>
+    </nav>
+  </div>
+</header>
+
+<main class="container" id="mainContainer">
+  <h1>👥 Znajomi</h1>
+
+  <!-- Kod znajomego -->
+  <section class="card">
+    <h2>🔑 Twój kod znajomego</h2>
+    <p class="muted">Udostępnij go, aby inni mogli Ci wysłać zaproszenie.</p>
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      <input type="text" id="friendCode" readonly style="flex:1;">
+      <button class="btn secondary" onclick="copyCode()">📋 Skopiuj</button>
+      <button class="btn danger" onclick="changeCode()">🔄 Zmień kod</button>
+    </div>
+
+    <hr style="margin:20px 0; border-color:var(--border)">
+
+    <h3>➕ Wyślij zaproszenie po kodzie</h3>
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      <input type="text" id="addCodeInput" placeholder="Wpisz kod znajomego" style="flex:1;">
+      <button class="btn" onclick="addFriend()">Wyślij zaproszenie</button>
+    </div>
+    <p id="addMessage" class="muted"></p>
+  </section>
+
+  <!-- Zaproszenia -->
+  <section class="card">
+    <h2>📩 Zaproszenia</h2>
+    <h3>Przychodzące</h3>
+    <div id="incomingList">Ładowanie...</div>
+    <hr style="margin:12px 0; border-color:var(--border)">
+    <h3>Wysłane</h3>
+    <div id="outgoingList">Ładowanie...</div>
+  </section>
+
+  <!-- Lista znajomych -->
+  <section class="card">
+    <h2>📜 Twoi znajomi</h2>
+    <div id="friendsList">Ładowanie...</div>
+  </section>
+
+  <!-- Widok profilu znajomego -->
+  <section id="profileView"></section>
+</main>
+
+<footer style="text-align:center;margin:40px 0;color:var(--muted);">
+  © <script>document.write(new Date().getFullYear())</script> StreamingHub
+</footer>
+
+<script>
+const db = supabase.createClient(
+  "https://jjmnacolebxsifmnmqks.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpqbW5hY29sZWJ4c2lmbW5tcWtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU3OTcyNDQsImV4cCI6MjA3MTM3MzI0NH0.1hNoBQ4wDuA_t_vscorQ6FRb-aW8IxHEDxuZKEhndv0"
+);
+let currentUser = null;
+
+(async()=>{
+  const { data:{ session } } = await db.auth.getSession();
+  if(!session) return location.href="login.html";
+  currentUser = session.user;
+
+  await loadFriendCode();
+  await loadRequests();
+  await loadFriends();
+})();
+
+async function loadFriendCode(){
+  const { data } = await db.from("profiles").select("friend_code").eq("id", currentUser.id).maybeSingle();
+  document.getElementById("friendCode").value = data?.friend_code || "Brak";
+}
+function copyCode(){ navigator.clipboard.writeText(document.getElementById("friendCode").value); alert("Skopiowano kod znajomego ✅"); }
+async function changeCode(){
+  if(!confirm("Czy na pewno chcesz zmienić kod znajomego?")) return;
+  const newCode = Math.random().toString(36).substring(2,10);
+  await db.from("profiles").update({ friend_code: newCode }).eq("id", currentUser.id);
+  await loadFriendCode();
+  alert("🔄 Kod znajomego został zmieniony!");
+}
+
+async function addFriend(){
+  const code = document.getElementById("addCodeInput").value.trim();
+  const msg = document.getElementById("addMessage");
+  msg.textContent = "";
+  if(!code) return alert("Podaj kod znajomego.");
+
+  const { data: owner } = await db.from("profiles").select("id,username").eq("friend_code", code).maybeSingle();
+  if(!owner) return msg.textContent = "❌ Nie znaleziono użytkownika o tym kodzie.";
+  if(owner.id === currentUser.id) return msg.textContent = "❌ Nie możesz wysłać zaproszenia do siebie.";
+
+  const { data: existingFriend } = await db.from("friends")
+    .select("*")
+    .or(`(user_id.eq.${currentUser.id},friend_id.eq.${owner.id}),(user_id.eq.${owner.id},friend_id.eq.${currentUser.id})`)
+    .maybeSingle();
+  if(existingFriend) return msg.textContent = "ℹ️ Już jesteście znajomymi.";
+
+  const { data: existingRequest } = await db.from("friend_requests")
+    .select("*")
+    .or(`(sender_id.eq.${currentUser.id},receiver_id.eq.${owner.id}),(sender_id.eq.${owner.id},receiver_id.eq.${currentUser.id})`)
+    .eq("status", "pending")
+    .maybeSingle();
+  if(existingRequest) return msg.textContent = "ℹ️ Istnieje już aktywne zaproszenie.";
+
+  await db.from("friend_requests").insert([{ sender_id: currentUser.id, receiver_id: owner.id, status: "pending" }]);
+  msg.textContent = `✅ Wysłano zaproszenie do ${owner.username}`;
+  document.getElementById("addCodeInput").value = "";
+  await loadRequests();
+}
+
+async function loadRequests(){
+  const { data: incoming } = await db.from("friend_requests")
+    .select("id,sender_id,created_at,profiles!sender_id(username,friend_code)")
+    .eq("receiver_id", currentUser.id).eq("status","pending");
+
+  const { data: outgoing } = await db.from("friend_requests")
+    .select("id,receiver_id,created_at,profiles!receiver_id(username,friend_code)")
+    .eq("sender_id", currentUser.id).eq("status","pending");
+
+  document.getElementById("incomingList").innerHTML = incoming?.length ? incoming.map(r=>{
+    const p = r.profiles;
+    return `
+      <div class="friend-item">
+        <div class="friend-info"><b>${p.username}</b><span class="muted">Kod: ${p.friend_code}</span></div>
+        <div><button class="btn" onclick="acceptRequest(${r.id},'${r.sender_id}')">✅ Akceptuj</button>
+             <button class="btn danger" onclick="rejectRequest(${r.id})">❌ Odrzuć</button></div>
+      </div>`;
+  }).join("") : "<p class='muted'>Brak przychodzących zaproszeń.</p>";
+
+  document.getElementById("outgoingList").innerHTML = outgoing?.length ? outgoing.map(r=>{
+    const p = r.profiles;
+    return `
+      <div class="friend-item">
+        <div class="friend-info"><b>${p.username}</b><span class="muted">Kod: ${p.friend_code}</span></div>
+        <div><button class="btn danger" onclick="cancelRequest(${r.id})">🗑 Anuluj</button></div>
+      </div>`;
+  }).join("") : "<p class='muted'>Brak wysłanych zaproszeń.</p>";
+}
+
+async function acceptRequest(id, senderId){
+  await db.from("friend_requests").update({status:"accepted"}).eq("id", id);
+  await db.from("friends").insert([{user_id: currentUser.id, friend_id: senderId},{user_id: senderId, friend_id: currentUser.id}]);
+  await loadRequests();
+  await loadFriends();
+}
+async function rejectRequest(id){ await db.from("friend_requests").update({status:"rejected"}).eq("id", id); await loadRequests(); }
+async function cancelRequest(id){ await db.from("friend_requests").update({status:"rejected"}).eq("id", id); await loadRequests(); }
+
+async function loadFriends(){
+  const { data } = await db.from("friends").select("friend_id,created_at").eq("user_id", currentUser.id);
+  if(!data?.length) return document.getElementById("friendsList").innerHTML = "<p class='muted'>Brak znajomych.</p>";
+  const ids = data.map(f=>f.friend_id);
+  const { data: profiles } = await db.from("profiles").select("id,username,friend_code,bio,created_at").in("id", ids);
+  const map = new Map(profiles.map(p=>[p.id,p]));
+  document.getElementById("friendsList").innerHTML = data.map(f=>{
+    const p = map.get(f.friend_id);
+    return `
+      <div class="friend-item">
+        <div class="friend-info"><b>${p?.username}</b><span class="muted">Kod: ${p?.friend_code}</span></div>
+        <div><button class="btn secondary" onclick="showProfile('${p?.id}')">👤 Profil</button></div>
+      </div>`;
+  }).join("");
+}
+
+
+  async function showProfile(id){
+  const { data } = await db.from("profiles").select("id,username,bio,created_at").eq("id", id).maybeSingle();
+  if(!data) return;
+  document.getElementById("profileView").style.display = "block";
+  document.getElementById("profileView").innerHTML = `
+    <h2>👤 Profil znajomego</h2>
+    <p><b>Nazwa:</b> ${data.username}</p>
+    <p><b>Bio:</b> ${data.bio || "Brak opisu"}</p>
+    <p><b>Data utworzenia konta:</b> ${new Date(data.created_at).toLocaleString()}</p>
+    <button class="btn danger" onclick="removeFriend('${data.id}')">❌ Usuń ze znajomych</button>
+    <button class="btn secondary" style="margin-left:10px" onclick="closeProfile()">🔙 Powrót</button>
+  `;
+  window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'});
+}
+
+  
+  function closeProfile(){ document.getElementById("profileView").style.display="none"; }
+
+  
+  async function removeFriend(id) {
+  if (!confirm("Na pewno usunąć tego znajomego?")) return;
+
+  // usuń relację w obu kierunkach
+  await db.from("friends")
+    .delete()
+    .eq("user_id", currentUser.id)
+    .eq("friend_id", id);
+
+  await db.from("friends")
+    .delete()
+    .eq("user_id", id)
+    .eq("friend_id", currentUser.id);
+
+  closeProfile();
+  await loadFriends();
+  alert("❌ Usunięto ze znajomych!");
+}
+
+async function logout(){ await db.auth.signOut(); location.href="login.html"; }
+</script>
+</body>
+</html>
