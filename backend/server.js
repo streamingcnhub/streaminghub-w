@@ -12,6 +12,18 @@ if (!fs.existsSync(PUBLIC_DIR)) {
   fs.mkdirSync(PUBLIC_DIR, { recursive: true });
 }
 
+// new: ścieżka do ukrytego katalogu i pliku index w nim
+const HIDDEN_DIR = path.join(PUBLIC_DIR, '_hidden'); // możesz użyć '_hidden' lub 'pages'
+const HIDDEN_INDEX = path.join(HIDDEN_DIR, 'index.html');
+
+// Blokuj bezpośredni dostęp do ukrytego katalogu — przekieruj na root
+app.use((req, res, next) => {
+  if (req.path.startsWith('/_hidden/') || req.path === '/_hidden' ) {
+    return res.redirect(301, '/');
+  }
+  next();
+});
+
 // Redirect starych linków /public/* -> /*
 app.use((req, res, next) => {
   if (req.path.startsWith('/public/')) {
@@ -86,6 +98,12 @@ function findAnyHtml(dir) {
 
 // --- Root -> domyślny plik (szuka rekurencyjnie: filmy.html, index.html, potem dowolny .html)
 app.get('/', (req, res) => {
+  // jeśli istnieje ukryty index -> zwróć go
+  if (fs.existsSync(HIDDEN_INDEX)) {
+    return res.sendFile(HIDDEN_INDEX);
+  }
+
+  // dotychczasowa logika: szukaj filmy.html, index.html rekurencyjnie, potem pierwszy .html
   const defaultFiles = ['filmy.html', 'index.html'];
   // najpierw szukamy konkretnych nazw rekurencyjnie
   const found = findFileRecursive(PUBLIC_DIR, defaultFiles);
