@@ -230,12 +230,12 @@ footer {
 <!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-/* =========================
-   KONFIG: PODMIEŃ NA SWOJE
-   ========================= */
-const SUPABASE_URL = "https://jjmnacolebxsifmnmqks.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpqbW5hY29sZWJ4c2lmbW5tcWtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU3OTcyNDQsImV4cCI6MjA3MTM3MzI0NH0.1hNoBQ4wDuA_t_vscorQ6FRb-aW8IxHEDxuZKEhndv0";
-const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// Zamiast hardcoded kluczy — pobierz z API lub czekaj na /api/config
+const SUPABASE_URL = window.SUPABASE_URL || ""; // placeholder
+const SUPABASE_KEY = window.SUPABASE_KEY || ""; // placeholder
+const db = (SUPABASE_URL && SUPABASE_KEY) 
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+  : null; // będzie null, frontend wywoła /api zamiast
 
 /* =========================
    UTILS

@@ -1,19 +1,81 @@
+// Załaduj zmienne środowiskowe z .env (lokalnie)
+require('dotenv').config();
+
+// Supabase server client (używaj tylko na backendzie)
+const { createClient } = require('@supabase/supabase-js');
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+let supabaseServer = null;
+if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+  supabaseServer = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  console.log('Supabase server client initialized');
+} else {
+  console.log('Supabase server keys missing; server client not initialized');
+}
+
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const cors = require('cors');
+const sqlite3 = require('sqlite3').verbose();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 // Now also consider repository root (one level up from backend)
 const REPO_ROOT = path.join(__dirname, '..'); // np. /workspaces/streaminghub-w
+const DATA_DIR = path.join(__dirname, 'data');
+const DB_PATH = path.join(DATA_DIR, 'db.sqlite');
 
 // Ensure public dir exists (repo root exists by default)
 if (!fs.existsSync(PUBLIC_DIR)) {
   // don't create repo root — tylko public jak trzeba
   fs.mkdirSync(PUBLIC_DIR, { recursive: true });
 }
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+
+const db = new sqlite3.Database(DB_PATH);
+
+// helper promises
+function run(sql, params=[]) { return new Promise((res, rej) => db.run(sql, params, function(err){ if(err) rej(err); else res({id:this.lastID, changes:this.changes}); })); }
+function all(sql, params=[]) { return new Promise((res, rej) => db.all(sql, params, (e,rows)=> e?rej(e):res(rows))); }
+function get(sql, params=[]) { return new Promise((res, rej) => db.get(sql, params, (e,row)=> e?rej(e):res(row))); }
+
+// Init tables (films, series, users, library, friends) - dopasuj kolumny do Twoich potrzeb
+(async function initDB(){
+  await run(`CREATE TABLE IF NOT EXISTS films (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT,
+    description TEXT,
+    url TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );`);
+  await run(`CREATE TABLE IF NOT EXISTS series (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT,
+    description TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );`);
+  await run(`CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE,
+    password TEXT, -- hashuj w produkcji
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );`);
+  await run(`CREATE TABLE IF NOT EXISTS library (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    item_type TEXT, -- 'film'|'series'
+    item_id INTEGER,
+    added_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );`);
+  await run(`CREATE TABLE IF NOT EXISTS friends (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    friend_user_id INTEGER,
+    status TEXT DEFAULT 'accepted'
+  );`);
+})().catch(err => { console.error('DB init error', err); });
 
 // Helper: sprawdź czy plik istnieje w jednym z dostarczonych katalogów
 function findFileInDirs(relativePath, dirs) {
@@ -168,6 +230,71 @@ app.delete('/api/items/:id', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'DB error' });
+  }
+});
+
+// API: listy / CRUD minimalne
+app.get('/api/films', async (req,res)=>{
+  try{ const rows = await all('SELECT * FROM films ORDER BY created_at DESC'); res.json(rows); } catch(e){ res.status(500).json({error:'DB'}); }
+});
+app.post('/api/films', async (req,res)=>{ // zabezpiecz auth później
+  try{ const {title,description,url} = req.body; if(!title) return res.status(400).json({error:'title required'}); const r = await run('INSERT INTO films (title,description,url) VALUES (?,?,?)',[title,description||'',url||'']); const row = await get('SELECT * FROM films WHERE id = ?',[r.id]); res.status(201).json(row); } catch(e){ res.status(500).json({error:'DB'}); }
+});
+
+app.get('/api/series', async (req,res)=>{
+  try{ const rows = await all('SELECT * FROM series ORDER BY created_at DESC'); res.json(rows); } catch(e){ res.status(500).json({error:'DB'}); }
+});
+app.post('/api/series', async (req,res)=>{
+  try{ const {title,description} = req.body; if(!title) return res.status(400).json({error:'title required'}); const r = await run('INSERT INTO series (title,description) VALUES (?,?)',[title,description||'']); const row = await get('SELECT * FROM series WHERE id = ?',[r.id]); res.status(201).json(row); } catch(e){ res.status(500).json({error:'DB'}); }
+});
+
+// Simple auth (demo) - returns user object; in production użyj hash + JWT
+app.post('/api/login', async (req,res)=>{
+  try{
+    const { username, password } = req.body;
+    if(!username || !password) return res.status(400).json({ error: 'username/password required' });
+    const user = await get('SELECT * FROM users WHERE username = ?', [username]);
+    if(!user){
+      // auto-register for convenience (demo only)
+      const r = await run('INSERT INTO users (username, password) VALUES (?,?)',[username, password]);
+      const newUser = await get('SELECT * FROM users WHERE id = ?',[r.id]);
+      return res.json({ user: newUser, token: 'demo-token' });
+    }
+    if(user.password !== password) return res.status(401).json({ error: 'invalid credentials' });
+    res.json({ user, token: 'demo-token' });
+  } catch(e){ res.status(500).json({ error: 'DB' }); }
+});
+
+// Library for logged user (demo: user_id passed as query or from token)
+app.get('/api/library', async (req,res)=>{
+  try{
+    const userId = req.query.user_id || 1;
+    const rows = await all('SELECT * FROM library WHERE user_id = ? ORDER BY added_at DESC',[userId]);
+    res.json(rows);
+  } catch(e){ res.status(500).json({error:'DB'}); }
+});
+
+// Friends list
+app.get('/api/friends', async (req,res)=>{
+  try{
+    const userId = req.query.user_id || 1;
+    const rows = await all('SELECT f.*, u.username as friend_username FROM friends f LEFT JOIN users u ON u.id = f.friend_user_id WHERE f.user_id = ?',[userId]);
+    res.json(rows);
+  } catch(e){ res.status(500).json({error:'DB'}); }
+});
+
+// Przykład użycia Supabase w endpointzie:
+app.post('/api/admin/add-film', async (req, res) => {
+  if (!supabaseServer) return res.status(500).json({ error: 'Supabase not configured' });
+  const { title, description, url } = req.body;
+  try {
+    const { data, error } = await supabaseServer
+      .from('films')
+      .insert([{ title, description, url }]);
+    if (error) return res.status(500).json({ error: error.message });
+    res.status(201).json(data[0]);
+  } catch (e) {
+    res.status(500).json({ error: 'server error' });
   }
 });
 

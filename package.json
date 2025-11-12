@@ -1,0 +1,7 @@
+{
+  "name": "streaminghub",
+  "private": true,
+  "dependencies": {
+    "@supabase/supabase-js": "^2.29.0"
+  }
+}

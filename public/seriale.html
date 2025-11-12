@@ -1,0 +1,49 @@
+Instrukcje:
+
+1. Przejdź do katalogu backend:
+   cd /workspaces/streaminghub-w/backend
+
+2. Skopiuj plik środowiskowy i uzupełnij klucze:
+   cp .env.example .env
+   (edytuj .env, wstaw wartości np. JWT_SECRET lub SUPABASE_* jeśli potrzebne)
+
+3. Zainstaluj zależności:
+   npm install
+
+4. Uruchom serwer:
+   npm start
+   (w trybie deweloperskim: npm run dev)
+
+Serwer:
+- Serwuje statyczne pliki z ../public jako root:
+  - http://localhost:3000/filmy.html będzie działać (plik public/filmy.html)
+  - Stare linki z prefiksem /public/ też będą przekierowane (301) na nowy adres bez /public.
+
+Domyślny plik przy wejściu na /:
+- Serwer najpierw szuka public/filmy.html, potem public/index.html i zwraca ten plik.
+- Jeśli chcesz inny domyślny plik, zmień nazwę lub zaktualizuj server.js.
+
+Opcjonalnie: przeniesienie plików (jeśli chcesz fizycznie usunąć podkatalog public z URL)
+- Jeśli twoje hostingowe ustawienia wymagają, żeby pliki były w katalogu root (bez /public/ w ścieżce),
+  możesz przenieść zawartość public/ do katalogu, który serwuje twój serwer HTTP bez dodatkowego prefiksu.
+- Przykładowy prosty skrypt (wykona przeniesienie lokalnie):
+  cd /workspaces/streaminghub-w
+  mv public/* .
+  # Uwaga: upewnij się, że nie nadpisujesz ważnych plików repozytorium.
+
+Dodawanie kluczy i zmiennych środowiskowych:
+- Skopiuj .env.example do .env i wypełnij wartości.
+- Na deployu ustaw te same zmienne w panelu projektu (nie commituj .env).
+
+Deploy:
+- Render.com / Railway.app obsługują Node.js (darmowy tier dla małych projektów).
+- Alternatywnie: przenieść DB do Supabase i użyć Vercel/Netlify dla frontendu.
+
+Uwagi:
+- Dzięki middleware w server.js nie musisz od razu przenosić plików — stare linki /public/ będą działać i zostaną przekierowane automatycznie.
+- Serwer teraz sprawdza pliki HTML najpierw w katalogu repozytorium (root: /workspaces/streaminghub-w), a potem w public/.
+- Jeśli położysz filmy.html w repo root (np. /workspaces/streaminghub-w/filmy.html), dostęp przez http://localhost:3000/ i http://localhost:3000/filmy będzie działał.
+- Możesz nadal trzymać pliki w public/ — serwer obsłuży obie lokalizacje.
+- Aby "ukryć" index, umieść go w public/_hidden/index.html (server zwróci go jako root, ale bezpośredni dostęp do /_hidden/* zostanie przekierowany na /).
+
+Analogicznie: fetch /api/series.
