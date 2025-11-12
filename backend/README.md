@@ -41,3 +41,7 @@ Deploy:
 
 Uwagi:
 - Dzięki middleware w server.js nie musisz od razu przenosić plików — stare linki /public/ będą działać i zostaną przekierowane automatycznie.
+- Serwer teraz sprawdza pliki HTML najpierw w katalogu repozytorium (root: /workspaces/streaminghub-w), a potem w public/.
+- Jeśli położysz filmy.html w repo root (np. /workspaces/streaminghub-w/filmy.html), dostęp przez http://localhost:3000/ i http://localhost:3000/filmy będzie działał.
+- Możesz nadal trzymać pliki w public/ — serwer obsłuży obie lokalizacje.
+- Aby "ukryć" index, umieść go w public/_hidden/index.html (server zwróci go jako root, ale bezpośredni dostęp do /_hidden/* zostanie przekierowany na /).

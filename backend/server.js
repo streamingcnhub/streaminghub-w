@@ -6,15 +6,25 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
+// Now also consider repository root (one level up from backend)
+const REPO_ROOT = path.join(__dirname, '..'); // np. /workspaces/streaminghub-w
 
-// Ensure public dir exists
+// Ensure public dir exists (repo root exists by default)
 if (!fs.existsSync(PUBLIC_DIR)) {
+  // don't create repo root — tylko public jak trzeba
   fs.mkdirSync(PUBLIC_DIR, { recursive: true });
 }
 
-// new: ścieżka do ukrytego katalogu i pliku index w nim
-const HIDDEN_DIR = path.join(PUBLIC_DIR, '_hidden'); // możesz użyć '_hidden' lub 'pages'
-const HIDDEN_INDEX = path.join(HIDDEN_DIR, 'index.html');
+// Helper: sprawdź czy plik istnieje w jednym z dostarczonych katalogów
+function findFileInDirs(relativePath, dirs) {
+  for (const d of dirs) {
+    try {
+      const p = path.join(d, relativePath);
+      if (fs.existsSync(p) && fs.statSync(p).isFile()) return p;
+    } catch (e) { /* ignore */ }
+  }
+  return null;
+}
 
 // Blokuj bezpośredni dostęp do ukrytego katalogu — przekieruj na root
 app.use((req, res, next) => {
@@ -46,12 +56,13 @@ app.use((req, res, next) => {
     return res.redirect(301, clean + (req.url.includes('?') ? ('?' + req.url.split('?').slice(1).join('?')) : ''));
   }
 
-  // 2) serve /file -> public/file.html if exists
-  const requested = req.path === '/' ? '' : req.path;
-  const candidate = path.join(PUBLIC_DIR, requested + '.html');
-  if (fs.existsSync(candidate)) {
-    return res.sendFile(candidate);
-  }
+  // 2) serve /file -> try repo-root/file.html then public/file.html
+  const relative = req.path === '/' ? '' : req.path.replace(/^\//, '');
+  if (req.path === '/') return next(); // root handled later
+
+  const candidateRel = relative + '.html';
+  const found = findFileInDirs(candidateRel, [REPO_ROOT, PUBLIC_DIR]);
+  if (found) return res.sendFile(found);
 
   next();
 });
@@ -62,59 +73,49 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files from public as root
+// Serve static files from public as before
 app.use(express.static(PUBLIC_DIR, {
-  index: false, // kontrolujemy index ręcznie
+  index: false,
 }));
 
-// helper: znajdź plik rekurencyjnie w PUBLIC_DIR pasujący na jedną z nazw
-function findFileRecursive(dir, candidates) {
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
-  for (const e of entries) {
-    const full = path.join(dir, e.name);
-    if (e.isFile()) {
-      if (candidates.includes(e.name)) return full;
-    } else if (e.isDirectory()) {
-      const found = findFileRecursive(full, candidates);
-      if (found) return found;
-    }
-  }
-  return null;
-}
-
-// helper: znajdź pierwszy plik .html rekurencyjnie
-function findAnyHtml(dir) {
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
-  for (const e of entries) {
-    const full = path.join(dir, e.name);
-    if (e.isFile() && path.extname(e.name).toLowerCase() === '.html') return full;
-    if (e.isDirectory()) {
-      const found = findAnyHtml(full);
-      if (found) return found;
-    }
-  }
-  return null;
-}
-
-// --- Root -> domyślny plik (szuka rekurencyjnie: filmy.html, index.html, potem dowolny .html)
+// Root handler: najpierw ukryty index w public/_hidden, potem repo-root filmy/index.html, potem public filmy/index.html, potem rekurencyjnie
 app.get('/', (req, res) => {
-  // jeśli istnieje ukryty index -> zwróć go
-  if (fs.existsSync(HIDDEN_INDEX)) {
-    return res.sendFile(HIDDEN_INDEX);
+  // 1) hidden index w public/_hidden/index.html
+  const hiddenIndex = path.join(PUBLIC_DIR, '_hidden', 'index.html');
+  if (fs.existsSync(hiddenIndex)) return res.sendFile(hiddenIndex);
+
+  // 2) szukaj konkretnych nazw w repo root, potem public (rekurencyjnie)
+  const candidates = ['filmy.html', 'index.html'];
+  for (const name of candidates) {
+    // bez rekurencji: najpierw root/name, potem public/name
+    const f = findFileInDirs(name, [REPO_ROOT, PUBLIC_DIR]);
+    if (f) return res.sendFile(f);
   }
 
-  // dotychczasowa logika: szukaj filmy.html, index.html rekurencyjnie, potem pierwszy .html
-  const defaultFiles = ['filmy.html', 'index.html'];
-  // najpierw szukamy konkretnych nazw rekurencyjnie
-  const found = findFileRecursive(PUBLIC_DIR, defaultFiles);
-  if (found) return res.sendFile(found);
+  // 3) znajdź dowolny .html rekurencyjnie w repo root, potem public
+  function findAnyHtmlRec(dirs) {
+    for (const d of dirs) {
+      const result = (function search(dir){
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const e of entries) {
+          const full = path.join(dir, e.name);
+          if (e.isFile() && path.extname(e.name).toLowerCase() === '.html') return full;
+          if (e.isDirectory()) {
+            const found = search(full);
+            if (found) return found;
+          }
+        }
+        return null;
+      })(d);
+      if (result) return result;
+    }
+    return null;
+  }
 
-  // jeśli nic nie znaleziono, zwróć pierwszy napotkany plik .html
-  const anyHtml = findAnyHtml(PUBLIC_DIR);
+  const anyHtml = findAnyHtmlRec([REPO_ROOT, PUBLIC_DIR]);
   if (anyHtml) return res.sendFile(anyHtml);
 
-  // fallback: informacja o braku plików
-  res.status(200).send('Brak domyślnego pliku w public/ (dodaj filmy.html lub index.html w public/ lub podkatalogach)');
+  res.status(200).send('Brak domyślnego pliku HTML w repo root ani w public/ (dodaj filmy.html lub index.html).');
 });
 
 // API endpoints
