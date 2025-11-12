@@ -9,33 +9,27 @@ const supabaseServer = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY ? createClient(
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
     if (req.method === 'GET') {
       if (!supabaseAnon) return res.status(500).json({ error: 'Supabase anon not configured' });
-      const { data, error } = await supabaseAnon.from('movies').select('*').order('created_at', { ascending: false });
+      const { movie_id, user_id } = req.query;
+      let q = supabaseAnon.from('ratings').select('*');
+      if (movie_id) q = q.eq('movie_id', movie_id);
+      if (user_id) q = q.eq('user_id', user_id);
+      const { data, error } = await q;
       if (error) return res.status(500).json({ error: error.message });
-      return res.status(200).json(data);
+      return res.status(200).json(user_id && movie_id ? (data[0] || null) : data);
     }
 
     if (req.method === 'POST') {
       if (!supabaseServer) return res.status(500).json({ error: 'Supabase server not configured' });
-      const { title, description, thumb, iframe, category_id, year, duration, points_required } = req.body;
-      if (!title) return res.status(400).json({ error: 'title required' });
-      const { data, error } = await supabaseServer.from('movies').insert([{ 
-        title, 
-        description: description || '', 
-        thumb: thumb || '',
-        iframe: iframe || '',
-        category_id: category_id || null,
-        year: year || null,
-        duration: duration || null,
-        points_required: points_required || 0
-      }]).select().single();
+      const { movie_id, user_id, score } = req.body;
+      if (!movie_id || !user_id || !score) return res.status(400).json({ error: 'movie_id, user_id, score required' });
+      const { data, error } = await supabaseServer.from('ratings').upsert({ movie_id, user_id, score }).select().single();
       if (error) return res.status(500).json({ error: error.message });
       return res.status(201).json(data);
     }
