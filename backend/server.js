@@ -55,14 +55,48 @@ app.use(express.static(PUBLIC_DIR, {
   index: false, // kontrolujemy index ręcznie
 }));
 
-// Root -> domyślny plik (najpierw filmy.html, potem index.html)
+// helper: znajdź plik rekurencyjnie w PUBLIC_DIR pasujący na jedną z nazw
+function findFileRecursive(dir, candidates) {
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const e of entries) {
+    const full = path.join(dir, e.name);
+    if (e.isFile()) {
+      if (candidates.includes(e.name)) return full;
+    } else if (e.isDirectory()) {
+      const found = findFileRecursive(full, candidates);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+// helper: znajdź pierwszy plik .html rekurencyjnie
+function findAnyHtml(dir) {
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const e of entries) {
+    const full = path.join(dir, e.name);
+    if (e.isFile() && path.extname(e.name).toLowerCase() === '.html') return full;
+    if (e.isDirectory()) {
+      const found = findAnyHtml(full);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+// --- Root -> domyślny plik (szuka rekurencyjnie: filmy.html, index.html, potem dowolny .html)
 app.get('/', (req, res) => {
   const defaultFiles = ['filmy.html', 'index.html'];
-  for (const f of defaultFiles) {
-    const p = path.join(PUBLIC_DIR, f);
-    if (fs.existsSync(p)) return res.sendFile(p);
-  }
-  res.status(200).send('Brak domyślnego pliku w public/ (dodaj filmy.html lub index.html)');
+  // najpierw szukamy konkretnych nazw rekurencyjnie
+  const found = findFileRecursive(PUBLIC_DIR, defaultFiles);
+  if (found) return res.sendFile(found);
+
+  // jeśli nic nie znaleziono, zwróć pierwszy napotkany plik .html
+  const anyHtml = findAnyHtml(PUBLIC_DIR);
+  if (anyHtml) return res.sendFile(anyHtml);
+
+  // fallback: informacja o braku plików
+  res.status(200).send('Brak domyślnego pliku w public/ (dodaj filmy.html lub index.html w public/ lub podkatalogach)');
 });
 
 // API endpoints
